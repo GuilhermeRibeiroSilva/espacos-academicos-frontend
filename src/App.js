@@ -1,24 +1,32 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { AppBar, Toolbar, Typography, Container, Button } from '@mui/material';
+import ListaEspacos from './components/espacos/ListaEspacos';
+import FormEspaco from './components/espacos/FormEspaco';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Sistema de Espaços Acadêmicos
+          </Typography>
+          <Button color="inherit" component={Link} to="/">
+            Espaços
+          </Button>
+          <Button color="inherit" component={Link} to="/espacos/novo">
+            Novo Espaço
+          </Button>
+        </Toolbar>
+      </AppBar>
+      <Container sx={{ mt: 4 }}>
+        <Routes>
+          <Route path="/" element={<ListaEspacos />} />
+          <Route path="/espacos/novo" element={<FormEspaco />} />
+        </Routes>
+      </Container>
+    </Router>
   );
 }
 
