@@ -1,76 +1,171 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-    TextField, 
-    Button, 
-    Box, 
-    Paper,
-    Typography 
+  Typography, 
+  Paper, 
+  TextField, 
+  Button, 
+  Box,
+  Grid
 } from '@mui/material';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
+import { useLoading } from '../../contexts/LoadingContext';
+import { useFeedback } from '../common/Feedback';
 
 const FormProfessor = () => {
-    const [formData, setFormData] = useState({
-        nome: '',
-        escola: ''
-    });
-
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await api.post('/professores', formData);
-            alert('Professor cadastrado com sucesso!');
-            setFormData({
-                nome: '',
-                escola: ''
-            });
-        } catch (error) {
-            console.error('Erro ao cadastrar professor:', error);
-            alert('Erro ao cadastrar professor');
-        }
-    };
-
-    return (
-        <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-                Cadastrar Professor
+  const { id } = useParams();
+  const isEdicao = !!id;
+  const navigate = useNavigate();
+  const { showLoading, hideLoading } = useLoading();
+  const { showFeedback, FeedbackComponent } = useFeedback();
+  
+  const [formData, setFormData] = useState({
+    nome: '',
+    escola: ''
+  });
+  
+  useEffect(() => {
+    if (isEdicao) {
+      carregarProfessor();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  
+  const carregarProfessor = async () => {
+    showLoading('Carregando dados do professor...');
+    try {
+      const response = await api.get(`/api/professores/${id}`);
+      setFormData({
+        nome: response.data.nome,
+        escola: response.data.escola
+      });
+    } catch (error) {
+      console.error('Erro ao carregar professor:', error);
+      showFeedback('Erro ao carregar dados do professor', 'error');
+      navigate('/professores');
+    } finally {
+      hideLoading();
+    }
+  };
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.nome || !formData.escola) {
+      showFeedback('Preencha todos os campos obrigatórios', 'error');
+      return;
+    }
+    
+    showLoading(isEdicao ? 'Atualizando professor...' : 'Cadastrando professor...');
+    
+    try {
+      if (isEdicao) {
+        await api.put(`/api/professores/${id}`, formData);
+        showFeedback('Professor atualizado com sucesso', 'success');
+      } else {
+        await api.post('/api/professores', formData);
+        showFeedback('Professor cadastrado com sucesso', 'success');
+      }
+      navigate('/professores');
+    } catch (error) {
+      console.error('Erro ao salvar professor:', error);
+      showFeedback(
+        error.response?.data?.message || 'Erro ao salvar professor', 
+        'error'
+      );
+    } finally {
+      hideLoading();
+    }
+  };
+  
+  return (
+    <div>
+      {FeedbackComponent}
+      <Typography variant="h4" sx={{ mb: 4 }}>
+        {isEdicao ? 'Editar Professor' : 'Cadastrar Professor'}
+      </Typography>
+      
+      <Paper 
+        component="form" 
+        onSubmit={handleSubmit}
+        sx={{ 
+          p: 4, 
+          borderRadius: '8px',
+          boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.1)',
+          bgcolor: '#0F1140'
+        }}
+      >
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" sx={{ color: 'white', mb: 1 }}>
+              Nome
             </Typography>
-            <Box component="form" onSubmit={handleSubmit}>
-                <TextField
-                    fullWidth
-                    label="Nome"
-                    name="nome"
-                    value={formData.nome}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                />
-                <TextField
-                    fullWidth
-                    label="Escola"
-                    name="escola"
-                    value={formData.escola}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                />
-                <Button 
-                    type="submit" 
-                    variant="contained" 
-                    color="primary"
-                    sx={{ mt: 2 }}
-                >
-                    Cadastrar
-                </Button>
+            <TextField
+              fullWidth
+              name="nome"
+              value={formData.nome}
+              onChange={handleChange}
+              placeholder="Digite o nome"
+              variant="outlined"
+              required
+              sx={{ 
+                bgcolor: '#f8f5ff',
+                borderRadius: '4px'
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" sx={{ color: 'white', mb: 1 }}>
+              Escola
+            </Typography>
+            <TextField
+              fullWidth
+              name="escola"
+              value={formData.escola}
+              onChange={handleChange}
+              placeholder="Digite a escola"
+              variant="outlined"
+              required
+              sx={{ 
+                bgcolor: '#f8f5ff',
+                borderRadius: '4px'
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ 
+                  bgcolor: '#f8f5ff', 
+                  color: '#0F1140',
+                  '&:hover': { bgcolor: '#e8e5ef' },
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+              >
+                {isEdicao ? 'Atualizar' : 'Cadastrar'}
+              </Button>
             </Box>
-        </Paper>
-    );
+          </Grid>
+        </Grid>
+      </Paper>
+    </div>
+  );
 };
 
 export default FormProfessor;

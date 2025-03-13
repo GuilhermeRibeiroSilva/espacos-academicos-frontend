@@ -1,27 +1,25 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import {
+import { 
   AppBar,
   Toolbar,
   Typography,
   Container,
-  Button,
   Box,
-  IconButton,
+  Button,
+  Avatar,
   Menu,
   MenuItem,
-  Avatar,
   ListItemIcon,
   ListItemText,
   Divider
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import MenuIcon from '@mui/icons-material/Menu';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
 import BookIcon from '@mui/icons-material/Book';
 import PeopleIcon from '@mui/icons-material/People';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import logoUcb from '../../img/ucasl-branco.png';
 
@@ -92,7 +90,7 @@ const Layout = ({ children }) => {
               SCEA
             </Typography>
           </Box>
-
+          
           {/* Dashboard Button */}
           <Button 
             color="inherit" 
@@ -101,9 +99,9 @@ const Layout = ({ children }) => {
             startIcon={<DashboardIcon />}
             sx={{ mr: 2 }}
           >
-            Dashboard
+            Inicio
           </Button>
-
+          
           {/* Menu do Usuário */}
           <Box>
             <Button
@@ -154,7 +152,7 @@ const Layout = ({ children }) => {
               <Divider />
               
               {isAdmin() && (
-                <>
+                <div>
                   <MenuItem component={Link} to="/espacos" onClick={handleUserMenuClose}>
                     <ListItemIcon>
                       <MeetingRoomIcon fontSize="small" />
@@ -175,7 +173,7 @@ const Layout = ({ children }) => {
                     </ListItemIcon>
                     <ListItemText>Usuários</ListItemText>
                   </MenuItem>
-                </>
+                </div>
               )}
               
               <MenuItem component={Link} to="/reservas" onClick={handleUserMenuClose}>
