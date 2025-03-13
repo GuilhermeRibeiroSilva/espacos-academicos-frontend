@@ -3,41 +3,26 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#181B59',
-      dark: '#0F1140',
-      light: '#2C2F7C',
+      main: '#14104a', // Azul escuro UCB
+      light: '#3f3a7d',
+      dark: '#0d0a2e',
     },
     secondary: {
-      main: '#F2E085',
+      main: '#ff6b00', // Laranja UCB
+      light: '#ff8c33',
+      dark: '#cc5500',
     },
     background: {
-      default: '#F2F2F2',
-      paper: '#FFFFFF',
-    },
-    text: {
-      primary: '#0F1140',
-      secondary: '#181B59',
+      default: '#f5f5f5',
     },
   },
   typography: {
-    fontFamily: 'Arial, sans-serif',
-    h1: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
-    },
-    h2: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
-    },
-    h3: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
-    },
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
+      fontWeight: 600,
     },
     h5: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
-    },
-    h6: {
-      fontFamily: 'Orbitron, Arial, sans-serif',
+      fontWeight: 500,
     },
     button: {
       textTransform: 'none',
@@ -55,6 +40,14 @@ const theme = createTheme({
           '&:hover': {
             boxShadow: '0px 2px 4px -1px rgba(0,0,0,0.2)',
           },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.1)',
         },
       },
     },

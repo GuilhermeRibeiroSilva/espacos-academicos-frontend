@@ -1,17 +1,19 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
-import { 
-    AppBar, 
-    Toolbar, 
-    Typography, 
-    Container, 
-    Button, 
-    Box,
-    IconButton,
-    Menu,
-    MenuItem,
-    Divider,
-    Avatar
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Button,
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  Avatar,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -19,8 +21,12 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
 import BookIcon from '@mui/icons-material/Book';
 import PeopleIcon from '@mui/icons-material/People';
+import AddIcon from '@mui/icons-material/Add';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import logoUcb from './img/ucasl-branco.png';
+import Layout from './components/layout/Layout';
 
 // Tema personalizado
 import theme from './theme';
@@ -78,15 +84,29 @@ const AppContent = () => {
     return <Navigate to="/login" />;
   }
 
+  // Função para obter o nome de exibição do usuário
+  const getUserDisplayName = () => {
+    if (!user) return '';
+
+    if (isAdmin()) return 'Administrador';
+
+    // Se for professor, retorna o nome do professor ou o username
+    if (isProfessor()) {
+      return user.professorNome || user.username.split('@')[0];
+    }
+
+    return user.username.split('@')[0];
+  };
+
   // Função para obter as iniciais do usuário para o avatar
   const getUserInitials = () => {
     if (!user || !user.username) return '?';
-    
+
     // Se for um email, pega a primeira letra antes do @
     if (user.username.includes('@')) {
       return user.username.split('@')[0].charAt(0).toUpperCase();
     }
-    
+
     // Caso contrário, pega a primeira letra
     return user.username.charAt(0).toUpperCase();
   };
@@ -95,6 +115,23 @@ const AppContent = () => {
     <>
       <AppBar position="static" sx={{ bgcolor: '#0F1140' }}>
         <Toolbar>
+          {/* Logo e Nome */}
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <img
+              src={logoUcb}
+              alt="Logo UCB"
+              style={{ height: '40px', marginRight: '16px' }}
+            />
+            <Typography
+              variant="h6"
+              component={Link}
+              to="/"
+              sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
+            >
+              SCEA
+            </Typography>
+          </Box>
+
           {/* Menu Mobile */}
           <IconButton
             size="large"
@@ -124,7 +161,7 @@ const AppContent = () => {
             onClose={handleClose}
           >
             <MenuItem component={Link} to="/" onClick={handleClose}>
-              <DashboardIcon sx={{ mr: 1 }} /> Meu Dashboard
+              <DashboardIcon sx={{ mr: 1 }} /> Dashboard
             </MenuItem>
             <Divider />
             {isAdmin() && (
@@ -133,14 +170,14 @@ const AppContent = () => {
                   <MeetingRoomIcon sx={{ mr: 1 }} /> Espaços
                 </MenuItem>
                 <MenuItem component={Link} to="/espacos/novo" onClick={handleClose}>
-                  <MeetingRoomIcon sx={{ mr: 1 }} /> Novo Espaço
+                  <AddIcon sx={{ mr: 1 }} /> Novo Espaço
                 </MenuItem>
                 <Divider />
                 <MenuItem component={Link} to="/professores" onClick={handleClose}>
                   <PersonIcon sx={{ mr: 1 }} /> Professores
                 </MenuItem>
                 <MenuItem component={Link} to="/professores/novo" onClick={handleClose}>
-                  <PersonIcon sx={{ mr: 1 }} /> Novo Professor
+                  <AddIcon sx={{ mr: 1 }} /> Novo Professor
                 </MenuItem>
                 <Divider />
                 <MenuItem component={Link} to="/usuarios" onClick={handleClose}>
@@ -153,80 +190,20 @@ const AppContent = () => {
               <BookIcon sx={{ mr: 1 }} /> Reservas
             </MenuItem>
             <MenuItem component={Link} to="/reservas/nova" onClick={handleClose}>
-              <BookIcon sx={{ mr: 1 }} /> Nova Reserva
+              <AddIcon sx={{ mr: 1 }} /> Nova Reserva
             </MenuItem>
           </Menu>
 
-          {/* Logo/Título */}
-          <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-            SCEA
-          </Typography>
-
           {/* Menu Desktop */}
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2, alignItems: 'center' }}>
-            <Button 
-              color="inherit" 
-              component={Link} 
+            <Button
+              color="inherit"
+              component={Link}
               to="/"
               startIcon={<DashboardIcon />}
             >
               Dashboard
             </Button>
-
-            {isAdmin() && (
-              <>
-                <Box>
-                  <Button 
-                    color="inherit" 
-                    component={Link} 
-                    to="/espacos"
-                    startIcon={<MeetingRoomIcon />}
-                  >
-                    Espaços
-                  </Button>
-                  <Button color="inherit" component={Link} to="/espacos/novo">
-                    Novo
-                  </Button>
-                </Box>
-                
-                <Box>
-                  <Button 
-                    color="inherit" 
-                    component={Link} 
-                    to="/professores"
-                    startIcon={<PersonIcon />}
-                  >
-                    Professores
-                  </Button>
-                  <Button color="inherit" component={Link} to="/professores/novo">
-                    Novo
-                  </Button>
-                </Box>
-
-                <Button 
-                  color="inherit" 
-                  component={Link} 
-                  to="/usuarios"
-                  startIcon={<PeopleIcon />}
-                >
-                  Usuários
-                </Button>
-              </>
-            )}
-
-            <Box>
-              <Button 
-                color="inherit" 
-                component={Link} 
-                to="/reservas"
-                startIcon={<BookIcon />}
-              >
-                Reservas
-              </Button>
-              <Button color="inherit" component={Link} to="/reservas/nova">
-                Nova
-              </Button>
-            </Box>
 
             {/* Menu do Usuário */}
             <Box>
@@ -235,11 +212,11 @@ const AppContent = () => {
                 onClick={handleUserMenu}
                 sx={{ textTransform: 'none' }}
                 startIcon={
-                  <Avatar 
-                    sx={{ 
-                      width: 32, 
-                      height: 32, 
-                      bgcolor: isAdmin() ? 'primary.main' : 'secondary.main',
+                  <Avatar
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      bgcolor: isAdmin() ? '#ff6b00' : '#1976d2',
                       fontSize: '0.875rem'
                     }}
                   >
@@ -247,12 +224,28 @@ const AppContent = () => {
                   </Avatar>
                 }
               >
-                {user.username}
+                {getUserDisplayName()}
               </Button>
               <Menu
                 anchorEl={userMenuAnchorEl}
                 open={userMenuOpen}
                 onClose={handleUserMenuClose}
+                PaperProps={{
+                  elevation: 0,
+                  sx: {
+                    overflow: 'visible',
+                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                    mt: 1.5,
+                    '& .MuiAvatar-root': {
+                      width: 32,
+                      height: 32,
+                      ml: -0.5,
+                      mr: 1,
+                    },
+                  },
+                }}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
               >
                 <MenuItem disabled>
                   <Typography variant="body2" color="text.secondary">
@@ -260,13 +253,70 @@ const AppContent = () => {
                   </Typography>
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={handleLogout}>Sair</MenuItem>
+
+                {isAdmin() && (
+                  <>
+                    <MenuItem component={Link} to="/espacos" onClick={handleUserMenuClose}>
+                      <ListItemIcon>
+                        <MeetingRoomIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Espaços</ListItemText>
+                    </MenuItem>
+                    <MenuItem component={Link} to="/espacos/novo" onClick={handleUserMenuClose}>
+                      <ListItemIcon>
+                        <AddIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Novo Espaço</ListItemText>
+                    </MenuItem>
+
+                    <MenuItem component={Link} to="/professores" onClick={handleUserMenuClose}>
+                      <ListItemIcon>
+                        <PersonIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Professores</ListItemText>
+                    </MenuItem>
+                    <MenuItem component={Link} to="/professores/novo" onClick={handleUserMenuClose}>
+                      <ListItemIcon>
+                        <AddIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Novo Professor</ListItemText>
+                    </MenuItem>
+
+                    <MenuItem component={Link} to="/usuarios" onClick={handleUserMenuClose}>
+                      <ListItemIcon>
+                        <PeopleIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Usuários</ListItemText>
+                    </MenuItem>
+                  </>
+                )}
+
+                <MenuItem component={Link} to="/reservas" onClick={handleUserMenuClose}>
+                  <ListItemIcon>
+                    <BookIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Reservas</ListItemText>
+                </MenuItem>
+                <MenuItem component={Link} to="/reservas/nova" onClick={handleUserMenuClose}>
+                  <ListItemIcon>
+                    <AddIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Nova Reserva</ListItemText>
+                </MenuItem>
+
+                <Divider />
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Sair</ListItemText>
+                </MenuItem>
               </Menu>
             </Box>
           </Box>
         </Toolbar>
       </AppBar>
-      
+
       <Container sx={{ mt: 4, pb: 4 }}>
         <Routes>
           {/* Dashboard */}
@@ -283,7 +333,7 @@ const AppContent = () => {
               <FormEspaco />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/professores" element={
             <ProtectedRoute roles={["ROLE_ADMIN"]}>
               <ListaProfessores />
@@ -331,7 +381,27 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+              <Route path="/espacos" element={
+                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                  <Layout>
+                    <ListaEspacos />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/espacos/novo" element={
+                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                  <Layout>
+                    <FormEspaco />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/espacos/editar/:id" element={
+                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                  <Layout>
+                    <FormEspaco />
+                  </Layout>
+                </ProtectedRoute>
+              } />
               <Route path="/*" element={<AppContent />} />
             </Routes>
           </Router>
