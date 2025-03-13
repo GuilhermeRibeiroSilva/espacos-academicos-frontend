@@ -47,6 +47,13 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
               {/* Rotas de Espaços */}
               <Route path="/espacos" element={
@@ -110,15 +117,15 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Rotas de Reservas */}
+              {/* Rotas de Reservas - CORRIGIDO */}
               <Route path="/reservas" element={
                 <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
                   <Layout>
-                    <ListaReservas />
+                    <ListaReservas userType="admin" />
                   </Layout>
                 </ProtectedRoute>
               } />
-              <Route path="/reservas/novo" element={
+              <Route path="/reservas/nova" element={
                 <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
                   <Layout>
                     <FormReserva />
@@ -129,6 +136,13 @@ function App() {
                 <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
                   <Layout>
                     <FormReserva />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/professor/reservas" element={
+                <ProtectedRoute roles={["ROLE_PROFESSOR"]}>
+                  <Layout>
+                    <ListaReservas userType="professor" />
                   </Layout>
                 </ProtectedRoute>
               } />

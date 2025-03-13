@@ -8,7 +8,7 @@ const theme = createTheme({
       dark: '#0d0a2e',
     },
     secondary: {
-      main: '#ff6b00', // Laranja UCB
+      main: '#F2E085', // Laranja UCB
       light: '#ff8c33',
       dark: '#cc5500',
     },

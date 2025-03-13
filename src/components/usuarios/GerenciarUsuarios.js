@@ -20,10 +20,104 @@ import {
   MenuItem,
   Box,
   Chip,
+  Grid,
+  Alert
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { useFeedback } from '../common/Feedback';
 import { useLoading } from '../../contexts/LoadingContext';
 import api from '../../services/api';
+
+// Estilos personalizados
+const FormContainer = styled(Box)({
+  backgroundColor: '#0F1140',
+  borderRadius: '10px',
+  padding: '30px',
+  width: '100%',
+  boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
+});
+
+const StyledTextField = styled(TextField)({
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: '#F2EEFF',
+    borderRadius: '8px',
+    '& fieldset': {
+      border: 'none',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: 'white',
+  },
+  marginBottom: '20px',
+});
+
+const StyledFormControl = styled(FormControl)({
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: '#F2EEFF',
+    borderRadius: '8px',
+    '& fieldset': {
+      border: 'none',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: 'white',
+  },
+  marginBottom: '20px',
+});
+
+const FormLabel = styled(Typography)({
+  color: 'white',
+  marginBottom: '8px',
+  fontSize: '16px',
+});
+
+const SaveButton = styled(Button)({
+  backgroundColor: '#F2EEFF',
+  color: '#0F1140',
+  padding: '12px 24px',
+  borderRadius: '8px',
+  fontWeight: 'bold',
+  '&:hover': {
+    backgroundColor: '#E5E0FF',
+  },
+});
+
+const CancelButton = styled(Button)({
+  backgroundColor: 'transparent',
+  color: '#F2EEFF',
+  padding: '12px 24px',
+  borderRadius: '8px',
+  fontWeight: 'bold',
+  border: '1px solid #F2EEFF',
+  '&:hover': {
+    backgroundColor: 'rgba(242, 238, 255, 0.1)',
+  },
+});
+
+const ButtonContainer = styled(Box)({
+  display: 'flex',
+  gap: '16px',
+  justifyContent: 'center',
+  marginTop: '30px',
+});
+
+const StyledDialogTitle = styled(DialogTitle)({
+  backgroundColor: '#0F1140',
+  color: 'white',
+  textAlign: 'center',
+  padding: '20px',
+});
+
+const StyledDialogContent = styled(DialogContent)({
+  backgroundColor: '#0F1140',
+  padding: '20px 30px',
+});
+
+const StyledDialogActions = styled(DialogActions)({
+  backgroundColor: '#0F1140',
+  padding: '20px',
+  justifyContent: 'center',
+});
 
 const GerenciarUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -171,8 +265,15 @@ const GerenciarUsuarios = () => {
           variant="contained"
           color="primary"
           onClick={handleOpenDialog}
+          sx={{
+            bgcolor: '#0F1140',
+            '&:hover': { bgcolor: '#1a1b4b' },
+            borderRadius: '4px',
+            py: 1.5,
+            px: 3
+          }}
         >
-          Novo Usuário Professor
+          Novo Usuário
         </Button>
       </Box>
 
@@ -201,21 +302,26 @@ const GerenciarUsuarios = () => {
                 <TableCell>{usuario.professorNome || '-'}</TableCell>
                 <TableCell>
                   <Button
-                    variant="outlined"
+                    variant="contained"
+                    color="primary"
                     size="small"
-                    sx={{ mr: 1 }}
                     onClick={() => handleOpenResetSenhaDialog(usuario)}
+                    sx={{
+                      mr: 1,
+                      bgcolor: '#0F1140',
+                      '&:hover': { bgcolor: '#1a1b4b' }
+                    }}
                   >
                     Resetar Senha
                   </Button>
                   {usuario.role !== 'ROLE_ADMIN' && (
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       color="error"
                       size="small"
                       onClick={() => handleDesativarUsuario(usuario.id)}
                     >
-                      Desativar
+                      Excluir
                     </Button>
                   )}
                 </TableCell>
@@ -225,77 +331,129 @@ const GerenciarUsuarios = () => {
         </Table>
       </TableContainer>
 
-      {/* Dialog para criar usuário professor */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog}>
-        <DialogTitle>Criar Usuário Professor</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Username (email)"
-            name="username"
-            type="email"
-            value={formData.username}
-            onChange={handleChange}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Senha"
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            margin="normal"
-            required
-          />
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Professor</InputLabel>
-            <Select
-              name="professorId"
-              value={formData.professorId}
-              onChange={handleChange}
-              required
-            >
-              {professoresSemUsuario.map((professor) => (
-                <MenuItem key={professor.id} value={professor.id}>
-                  {professor.nome} - {professor.escola}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleSubmit} color="primary">
-            Criar
-          </Button>
-        </DialogActions>
+      {/* Dialog para criar usuário professor - ESTILIZADO */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleCloseDialog}
+        PaperProps={{
+          style: {
+            backgroundColor: '#0F1140',
+            borderRadius: '10px',
+            maxWidth: '500px',
+            width: '100%'
+          }
+        }}
+      >
+        <StyledDialogTitle>Criar Usuário Professor</StyledDialogTitle>
+        <StyledDialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormLabel>Nome de Usuário (email)</FormLabel>
+              <StyledTextField
+                fullWidth
+                placeholder="Digite o email"
+                name="username"
+                type="email"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                variant="outlined"
+                InputLabelProps={{ shrink: false }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <FormLabel>Senha</FormLabel>
+              <StyledTextField
+                fullWidth
+                placeholder="Digite a senha"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                variant="outlined"
+                InputLabelProps={{ shrink: false }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <FormLabel>Professor</FormLabel>
+              <StyledFormControl fullWidth>
+                <Select
+                  name="professorId"
+                  value={formData.professorId}
+                  onChange={handleChange}
+                  required
+                  displayEmpty
+                  renderValue={(value) => {
+                    if (!value) return 'Escolha um professor';
+                    const professor = professoresSemUsuario.find(p => p.id === value);
+                    return professor ? `${professor.nome} - ${professor.escola}` : '';
+                  }}
+                >
+                  {professoresSemUsuario.map((professor) => (
+                    <MenuItem key={professor.id} value={professor.id}>
+                      {professor.nome} - {professor.escola}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </StyledFormControl>
+            </Grid>
+          </Grid>
+        </StyledDialogContent>
+        <StyledDialogActions>
+          <ButtonContainer>
+            <CancelButton onClick={handleCloseDialog}>
+              Cancelar
+            </CancelButton>
+            <SaveButton onClick={handleSubmit}>
+              Cadastrar
+            </SaveButton>
+          </ButtonContainer>
+        </StyledDialogActions>
       </Dialog>
 
-      {/* Dialog para resetar senha */}
-      <Dialog open={resetSenhaDialogOpen} onClose={handleCloseResetSenhaDialog}>
-        <DialogTitle>Resetar Senha</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" gutterBottom>
+      {/* Dialog para resetar senha - ESTILIZADO */}
+      <Dialog 
+        open={resetSenhaDialogOpen} 
+        onClose={handleCloseResetSenhaDialog}
+        PaperProps={{
+          style: {
+            backgroundColor: '#0F1140',
+            borderRadius: '10px',
+            maxWidth: '500px',
+            width: '100%'
+          }
+        }}
+      >
+        <StyledDialogTitle>Resetar Senha</StyledDialogTitle>
+        <StyledDialogContent>
+          <FormLabel sx={{ mb: 2 }}>
             Usuário: {selectedUsuario?.username}
-          </Typography>
-          <TextField
+          </FormLabel>
+          <FormLabel>Nova Senha</FormLabel>
+          <StyledTextField
             fullWidth
-            label="Nova Senha"
+            placeholder="Digite a nova senha"
             type="password"
             value={novaSenha}
             onChange={(e) => setNovaSenha(e.target.value)}
-            margin="normal"
             required
+            variant="outlined"
+            InputLabelProps={{ shrink: false }}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseResetSenhaDialog}>Cancelar</Button>
-          <Button onClick={handleResetSenha} color="primary">
-            Resetar
-          </Button>
-        </DialogActions>
+        </StyledDialogContent>
+        <StyledDialogActions>
+          <ButtonContainer>
+            <CancelButton onClick={handleCloseResetSenhaDialog}>
+              Cancelar
+            </CancelButton>
+            <SaveButton onClick={handleResetSenha}>
+              Resetar
+            </SaveButton>
+          </ButtonContainer>
+        </StyledDialogActions>
       </Dialog>
     </div>
   );
