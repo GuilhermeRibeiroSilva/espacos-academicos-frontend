@@ -93,7 +93,7 @@ const AppContent = () => {
 
   return (
     <>
-      <AppBar position="static">
+      <AppBar position="static" sx={{ bgcolor: '#0F1140' }}>
         <Toolbar>
           {/* Menu Mobile */}
           <IconButton
@@ -124,7 +124,7 @@ const AppContent = () => {
             onClose={handleClose}
           >
             <MenuItem component={Link} to="/" onClick={handleClose}>
-              <DashboardIcon sx={{ mr: 1 }} /> Dashboard
+              <DashboardIcon sx={{ mr: 1 }} /> Meu Dashboard
             </MenuItem>
             <Divider />
             {isAdmin() && (
@@ -159,7 +159,7 @@ const AppContent = () => {
 
           {/* Logo/Título */}
           <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-            Sistema de Espaços Acadêmicos
+            SCEA
           </Typography>
 
           {/* Menu Desktop */}
