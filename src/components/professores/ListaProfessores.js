@@ -14,15 +14,9 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
-    IconButton,
-    Tooltip
+    DialogTitle
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import AddIcon from '@mui/icons-material/Add';
 import api from '../../services/api';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useFeedback } from '../common/Feedback';
@@ -37,7 +31,6 @@ const ListaProfessores = () => {
 
     useEffect(() => {
         carregarProfessores();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const carregarProfessores = async () => {
@@ -77,24 +70,24 @@ const ListaProfessores = () => {
 
     const handleConfirmExcluir = async () => {
         if (!professorParaExcluir) return;
-
+      
         showLoading('Excluindo professor...');
         try {
-            await api.delete(`/professores/${professorParaExcluir.id}`);
-            showFeedback('Professor excluído com sucesso', 'success');
-            carregarProfessores();
+          await api.delete(`/professores/${professorParaExcluir.id}?force=true`); // Removido /api/ e adicionado force=true
+          showFeedback('Professor excluído com sucesso', 'success');
+          carregarProfessores();
         } catch (error) {
-            console.error('Erro ao excluir professor:', error);
-            showFeedback(
-                error.response?.data?.message || 'Erro ao excluir professor',
-                'error'
-            );
+          console.error('Erro ao excluir professor:', error);
+          showFeedback(
+            error.response?.data?.message || 'Erro ao excluir professor',
+            'error'
+          );
         } finally {
-            hideLoading();
-            setConfirmDialogOpen(false);
-            setProfessorParaExcluir(null);
+          hideLoading();
+          setConfirmDialogOpen(false);
+          setProfessorParaExcluir(null);
         }
-    };
+      };
 
     return (
         <div>
@@ -188,7 +181,6 @@ const ListaProfessores = () => {
                 </TableContainer>
             </Paper>
 
-            {/* Diálogo de confirmação para exclusão */}
             <Dialog
                 open={confirmDialogOpen}
                 onClose={handleCancelExcluir}
@@ -197,7 +189,7 @@ const ListaProfessores = () => {
                 <DialogContent>
                     <DialogContentText>
                         Tem certeza que deseja excluir o professor "{professorParaExcluir?.nome}"?
-                        Esta ação não pode ser desfeita.
+                        Esta ação também excluirá todas as reservas associadas a este professor.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

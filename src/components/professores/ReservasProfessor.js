@@ -29,19 +29,20 @@ const ReservasProfessor = () => {
   const { showFeedback, FeedbackComponent } = useFeedback();
 
   useEffect(() => {
-    carregarDados();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (id) {
+      carregarDados();
+    }
   }, [id]);
 
   const carregarDados = async () => {
     showLoading('Carregando dados...');
     try {
       // Carregar dados do professor
-      const professorResponse = await api.get(`/professores/${id}`);
+      const professorResponse = await api.get(`/professores/${id}`); // Removido /api/
       setProfessor(professorResponse.data);
       
       // Carregar reservas do professor
-      const reservasResponse = await api.get(`/professores/${id}/reservas`);
+      const reservasResponse = await api.get(`/professores/${id}/reservas`); // Removido /api/
       setReservas(reservasResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);

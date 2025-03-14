@@ -28,16 +28,15 @@ const FormProfessor = () => {
     if (isEdicao) {
       carregarProfessor();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isEdicao]);
   
   const carregarProfessor = async () => {
     showLoading('Carregando dados do professor...');
     try {
-      const response = await api.get(`/api/professores/${id}`);
+      const response = await api.get(`/professores/${id}`); // Removido /api/
       setFormData({
-        nome: response.data.nome,
-        escola: response.data.escola
+        nome: response.data.nome || '',
+        escola: response.data.escola || ''
       });
     } catch (error) {
       console.error('Erro ao carregar professor:', error);
@@ -68,10 +67,10 @@ const FormProfessor = () => {
     
     try {
       if (isEdicao) {
-        await api.put(`/api/professores/${id}`, formData);
+        await api.put(`/professores/${id}`, formData); // Removido /api/
         showFeedback('Professor atualizado com sucesso', 'success');
       } else {
-        await api.post('/api/professores', formData);
+        await api.post('/professores', formData); // Removido /api/
         showFeedback('Professor cadastrado com sucesso', 'success');
       }
       navigate('/professores');
@@ -84,6 +83,10 @@ const FormProfessor = () => {
     } finally {
       hideLoading();
     }
+  };
+  
+  const handleCancelar = () => {
+    navigate('/professores');
   };
   
   return (
@@ -143,7 +146,25 @@ const FormProfessor = () => {
           </Grid>
           
           <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+              <Button
+                onClick={handleCancelar}
+                variant="outlined"
+                sx={{ 
+                  color: '#f8f5ff',
+                  borderColor: '#f8f5ff',
+                  '&:hover': { 
+                    borderColor: '#e8e5ef',
+                    color: '#e8e5ef'
+                  },
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: '4px',
+                  width: '48%'
+                }}
+              >
+                Cancelar
+              </Button>
               <Button
                 type="submit"
                 variant="contained"
@@ -155,7 +176,7 @@ const FormProfessor = () => {
                   py: 1.5,
                   borderRadius: '4px',
                   fontWeight: 'bold',
-                  width: '100%'
+                  width: '48%'
                 }}
               >
                 {isEdicao ? 'Atualizar' : 'Cadastrar'}

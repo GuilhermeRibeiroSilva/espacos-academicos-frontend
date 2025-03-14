@@ -217,24 +217,21 @@ const FormReserva = () => {
             
             // Formatar dados para envio
             const reservaData = {
-                espacoAcademico: { id: formData.espacoAcademico },
-                professor: { id: formData.professor },
+                espacoAcademico: { id: parseInt(formData.espacoAcademico) },
+                professor: { id: parseInt(formData.professor) },
                 data: formData.data.toISOString().split('T')[0],
-                horaInicial: formData.horaInicial.toTimeString().slice(0, 8),
-                horaFinal: formData.horaFinal.toTimeString().slice(0, 8),
+                horaInicial: formData.horaInicial.toTimeString().slice(0, 5),
+                horaFinal: formData.horaFinal.toTimeString().slice(0, 5),
                 utilizado: false
             };
             
             // Enviar para API
             if (id) {
                 await api.put(`/reservas/${id}`, reservaData);
-                alert("Reserva atualizada com sucesso!");
             } else {
                 await api.post('/reservas', reservaData);
-                alert("Reserva criada com sucesso!");
             }
             
-            // Redirecionar para lista de reservas
             navigate('/reservas');
         } catch (error) {
             logError(error, 'Erro ao salvar reserva');

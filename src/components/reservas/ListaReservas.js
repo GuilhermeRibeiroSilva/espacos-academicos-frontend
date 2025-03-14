@@ -141,8 +141,9 @@ const ListaReservas = ({ userType }) => {
     const confirmarUtilizacao = async (id) => {
         setLoading(true);
         try {
-            await api.patch(`/reservas/${id}/confirmar-utilizacao`);
-            alert('Utilização confirmada com sucesso!');
+            await api.patch(`/reservas/${id}/confirmar`, {
+                utilizado: true
+            });
             carregarReservas();
             handleCloseConfirmDialog();
         } catch (error) {
@@ -155,9 +156,11 @@ const ListaReservas = ({ userType }) => {
     const cancelarReserva = async (id) => {
         setLoading(true);
         try {
-            console.log("Excluindo reserva com ID:", id);
-            await api.delete(`/reservas/${id}`);
-            alert('Reserva cancelada com sucesso!');
+            await api.delete(`/reservas/${id}`, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
             carregarReservas();
             handleCloseConfirmDialog();
         } catch (error) {
