@@ -199,8 +199,13 @@ const ListaReservas = ({ userType }) => {
         }
     };
 
-    const formatarData = (data) => {
-        return new Date(data).toLocaleDateString('pt-BR');
+    const formatarData = (dataString) => {
+        if (!dataString) return '';
+        
+        const data = new Date(dataString);
+        data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
+        
+        return data.toLocaleDateString('pt-BR');
     };
 
     const formatarHora = (hora) => {

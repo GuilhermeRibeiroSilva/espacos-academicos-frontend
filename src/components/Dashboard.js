@@ -175,6 +175,28 @@ const Dashboard = () => {
       days = [...days, new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + i)];
     }
 
+    const salasEmUso = espacos.filter(espaco => {
+      // Verifica se há alguma reserva ativa para este espaço
+      return reservas.some(reserva => {
+          if (reserva.status === 'CANCELADO') return false;
+          
+          const agora = new Date();
+          const dataReserva = new Date(reserva.data);
+          const horaInicial = new Date(`${reserva.data}T${reserva.horaInicial}`);
+          const horaFinal = new Date(`${reserva.data}T${reserva.horaFinal}`);
+          
+          // Mesma data e horário atual entre inicial e final
+          return reserva.espacoAcademico.id === espaco.id && 
+                 dataReserva.toDateString() === agora.toDateString() &&
+                 agora >= horaInicial && agora <= horaFinal;
+      });
+  });
+  
+  // Salas disponíveis são as que não estão em uso
+  const salasDisponiveis = espacos.filter(espaco => 
+      espaco.disponivel && !salasEmUso.some(s => s.id === espaco.id)
+  );
+
     // Dividir os dias em semanas
     let daysInWeek = [];
     for (let i = 0; i < days.length; i++) {

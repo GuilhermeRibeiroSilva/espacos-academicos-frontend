@@ -38,11 +38,11 @@ const ReservasProfessor = () => {
     showLoading('Carregando dados...');
     try {
       // Carregar dados do professor
-      const professorResponse = await api.get(`/professores/${id}`); // Removido /api/
+      const professorResponse = await api.get(`/professores/${id}`);
       setProfessor(professorResponse.data);
       
       // Carregar reservas do professor
-      const reservasResponse = await api.get(`/professores/${id}/reservas`); // Removido /api/
+      const reservasResponse = await api.get(`/professores/${id}/reservas`);
       setReservas(reservasResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -62,17 +62,11 @@ const ReservasProfessor = () => {
     return horaString.substring(0, 5); // Formato HH:mm
   };
 
-  const getStatusReserva = (reserva) => {
-    const hoje = new Date();
-    const dataReserva = new Date(reserva.data);
-    
-    if (reserva.utilizado) {
-      return { label: 'Utilizada', color: 'success' };
-    } else if (dataReserva < hoje) {
-      return { label: 'Finalizada', color: 'default' };
-    } else {
-      return { label: 'Agendada', color: 'primary' };
-    }
+  const exibirStatus = (reserva) => {
+    if (reserva.status === 'CANCELADO') return { label: 'Cancelada', color: 'error' };
+    return reserva.utilizado ? 
+      { label: 'Utilizada', color: 'success' } : 
+      { label: 'Pendente', color: 'primary' };
   };
 
   const handleVoltar = () => {
@@ -126,7 +120,7 @@ const ReservasProfessor = () => {
             <TableBody>
               {reservas.length > 0 ? (
                 reservas.map((reserva) => {
-                  const status = getStatusReserva(reserva);
+                  const status = exibirStatus(reserva);
                   return (
                     <TableRow key={reserva.id}>
                       <TableCell>
