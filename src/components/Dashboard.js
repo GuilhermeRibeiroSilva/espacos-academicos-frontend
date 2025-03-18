@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Grid, 
+  Grid,
   Paper, 
   Typography, 
-  Card, 
-  CardContent,
   Box,
   IconButton,
-  Tooltip,
   Chip,
   Divider
 } from '@mui/material';
@@ -35,11 +32,18 @@ const Dashboard = () => {
   const [reservasPorDia, setReservasPorDia] = useState({});
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [reservasDoDia, setReservasDoDia] = useState([]);
+  const [espacosAtualizados, setEspacosAtualizados] = useState([]);
 
   useEffect(() => {
     carregarDados();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Atualiza o status dos espaços a cada minuto
+    const interval = setInterval(() => {
+      const espacosStatus = atualizarStatusEspacos(reservasHoje, espacos);
+      setEspacosAtualizados(espacosStatus);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [reservasHoje, espacos]);
 
   useEffect(() => {
     // Quando as reservas mudam, atualize o mapa de reservas por dia
@@ -100,6 +104,35 @@ const Dashboard = () => {
       : reservasDia.filter(r => r.professor.id === user.professorId);
     
     setReservasDoDia(reservasFiltradas);
+  };
+
+  const atualizarStatusEspacos = (reservas, espacos) => {
+    const agora = new Date();
+    
+    return espacos.map(espaco => {
+      const reservaAtual = reservas.find(r => {
+        if (r.status === 'CANCELADO') return false;
+        
+        const dataReserva = new Date(r.data);
+        const [horaInicial, minutoInicial] = r.horaInicial.split(':');
+        const [horaFinal, minutoFinal] = r.horaFinal.split(':');
+        
+        const inicioReserva = new Date(dataReserva);
+        inicioReserva.setHours(parseInt(horaInicial), parseInt(minutoInicial), 0);
+        
+        const fimReserva = new Date(dataReserva);
+        fimReserva.setHours(parseInt(horaFinal), parseInt(minutoFinal), 0);
+        
+        return r.espacoAcademico.id === espaco.id && 
+               agora >= inicioReserva && 
+               agora <= fimReserva;
+      });
+  
+      return {
+        ...espaco,
+        emUso: !!reservaAtual
+      };
+    });
   };
 
   const nextMonth = () => {
@@ -305,7 +338,10 @@ const Dashboard = () => {
               {espacos.length}
             </Typography>
             <Typography color="textSecondary">
-              {espacos.filter(e => e.disponivel).length} disponíveis
+              {espacosAtualizados.filter(e => e.disponivel && !e.emUso).length} disponíveis
+            </Typography>
+            <Typography color="textSecondary">
+              {espacosAtualizados.filter(e => e.emUso).length} em uso
             </Typography>
           </Paper>
 

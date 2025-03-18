@@ -32,7 +32,7 @@ const ReservasProfessor = () => {
     if (id) {
       carregarDados();
     }
-  }, [id]);
+  }, [id, carregarDados]);
 
   const carregarDados = async () => {
     showLoading('Carregando dados...');
@@ -62,15 +62,19 @@ const ReservasProfessor = () => {
     return horaString.substring(0, 5); // Formato HH:mm
   };
 
-  const exibirStatus = (reserva) => {
-    if (reserva.status === 'CANCELADO') return { label: 'Cancelada', color: 'error' };
-    return reserva.utilizado ? 
-      { label: 'Utilizada', color: 'success' } : 
-      { label: 'Pendente', color: 'primary' };
-  };
-
   const handleVoltar = () => {
     navigate('/professores');
+  };
+
+  const exibirStatus = (reserva) => {
+    switch (reserva.status) {
+      case 'CANCELADO':
+        return { label: 'Cancelada', color: 'error' };
+      case 'UTILIZADO':
+        return { label: 'Utilizada', color: 'success' };
+      default:
+        return { label: 'Pendente', color: 'primary' };
+    }
   };
 
   return (
