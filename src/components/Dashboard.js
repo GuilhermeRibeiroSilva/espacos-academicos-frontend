@@ -19,11 +19,13 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLoading } from '../contexts/LoadingContext';
 import { useFeedback } from '../components/common/Feedback';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
+  const navigate = useNavigate();
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [espacos, setEspacos] = useState([]);
@@ -33,65 +35,37 @@ const Dashboard = () => {
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [reservasDoDia, setReservasDoDia] = useState([]);
   const [espacosAtualizados, setEspacosAtualizados] = useState([]);
+  const [dataSelecionada, setDataSelecionada] = useState(new Date());
 
+  // Carregar dados apenas uma vez na montagem do componente
   useEffect(() => {
-    carregarDados();
-    // Atualiza o status dos espaços a cada minuto
-    const interval = setInterval(() => {
-      const espacosStatus = atualizarStatusEspacos(reservasHoje, espacos);
-      setEspacosAtualizados(espacosStatus);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [reservasHoje, espacos]);
-
-  useEffect(() => {
-    // Quando as reservas mudam, atualize o mapa de reservas por dia
-    const reservaMap = {};
-    reservas.forEach(reserva => {
-      const dataKey = reserva.data;
-      if (!reservaMap[dataKey]) {
-        reservaMap[dataKey] = [];
+    const carregarDadosIniciais = async () => {
+      try {
+        // Buscar espaços acadêmicos
+        const responseEspacos = await api.get('/espacos');
+        setEspacos(responseEspacos.data);
+        
+        // Buscar todas as reservas
+        const responseReservas = await api.get('/reservas');
+        setReservas(responseReservas.data);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
       }
-      reservaMap[dataKey].push(reserva);
-    });
-    setReservasPorDia(reservaMap);
+    };
     
-    // Atualiza as reservas do dia selecionado
-    atualizarReservasDoDia(selectedDay);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservas, selectedDay]);
+    carregarDadosIniciais();
+  }, []);
 
-  const carregarDados = async () => {
-    showLoading('Carregando dados...');
-    try {
-      const hoje = format(new Date(), 'yyyy-MM-dd');
-      
-      // Carregar espaços
-      const espacosResponse = await api.get('/espacos');
-      setEspacos(espacosResponse.data);
-      
-      // Carregar todas as reservas
-      const reservasResponse = await api.get('/reservas');
-      const todasReservas = reservasResponse.data;
-      setReservas(todasReservas);
-      
-      // Filtrar reservas de hoje
-      const reservasDeHoje = todasReservas.filter(
-        reserva => reserva.data === hoje
+  // Filtrar reservas quando a data mudar ou quando as reservas forem carregadas
+  useEffect(() => {
+    if (reservas.length > 0) {
+      const dataFormatada = format(dataSelecionada, 'yyyy-MM-dd');
+      const filtradas = reservas.filter(reserva => 
+        reserva.data === dataFormatada
       );
-      setReservasHoje(reservasDeHoje);
-      
-      // Inicializar reservas do dia selecionado
-      atualizarReservasDoDia(new Date());
-      
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      showFeedback('Erro ao carregar dados do dashboard', 'error');
-    } finally {
-      hideLoading();
+      setReservasDoDia(filtradas);
     }
-  };
+  }, [dataSelecionada, reservas]);
 
   const atualizarReservasDoDia = (dia) => {
     const dataFormatada = format(dia, 'yyyy-MM-dd');

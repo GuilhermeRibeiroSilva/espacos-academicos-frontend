@@ -27,12 +27,10 @@ const ReservasProfessor = () => {
   const navigate = useNavigate();
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
-
+  
   useEffect(() => {
-    if (id) {
-      carregarDados();
-    }
-  }, [id, carregarDados]);
+    carregarDados();
+  }, [id]);
 
   const carregarDados = async () => {
     showLoading('Carregando dados...');
