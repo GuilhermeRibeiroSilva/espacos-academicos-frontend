@@ -41,13 +41,23 @@ const Dashboard = () => {
   useEffect(() => {
     const carregarDadosIniciais = async () => {
       try {
-        // Buscar espaços acadêmicos
-        const responseEspacos = await api.get('/espacos');
-        setEspacos(responseEspacos.data);
+        const [espacosResponse, reservasResponse] = await Promise.all([
+          api.get('/espacos'),
+          api.get('/reservas')
+        ]);
+
+        setEspacos(espacosResponse.data);
+        const todasReservas = reservasResponse.data;
         
-        // Buscar todas as reservas
-        const responseReservas = await api.get('/reservas');
-        setReservas(responseReservas.data);
+        // Filtra reservas do dia atual
+        const hoje = new Date();
+        const reservasHoje = todasReservas.filter(reserva => {
+          const dataReserva = new Date(reserva.data);
+          return dataReserva.toDateString() === hoje.toDateString();
+        });
+
+        setReservasDoDia(reservasHoje);
+        atualizarStatusEspacos(reservasHoje, espacosResponse.data);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
       }
@@ -67,47 +77,50 @@ const Dashboard = () => {
     }
   }, [dataSelecionada, reservas]);
 
-  const atualizarReservasDoDia = (dia) => {
-    const dataFormatada = format(dia, 'yyyy-MM-dd');
-    const reservasDia = reservasPorDia[dataFormatada] || [];
-    
-    // Se for admin, mostra todas as reservas do dia
-    // Se for professor, filtra apenas as reservas dele
-    const reservasFiltradas = isAdmin() 
-      ? reservasDia 
-      : reservasDia.filter(r => r.professor.id === user.professorId);
-    
-    setReservasDoDia(reservasFiltradas);
+  const atualizarReservasDoDia = async (dia) => {
+    try {
+      const response = await api.get('/reservas');
+      const todasReservas = response.data;
+      
+      const reservasDoDia = todasReservas.filter(reserva => {
+        const dataReserva = new Date(reserva.data);
+        return dataReserva.toDateString() === dia.toDateString();
+      });
+
+      setReservasDoDia(reservasDoDia);
+      atualizarStatusEspacos(reservasDoDia, espacos);
+    } catch (error) {
+      console.error('Erro ao carregar reservas:', error);
+    }
   };
 
   const atualizarStatusEspacos = (reservas, espacos) => {
     const agora = new Date();
-    
-    return espacos.map(espaco => {
-      const reservaAtual = reservas.find(r => {
-        if (r.status === 'CANCELADO') return false;
-        
-        const dataReserva = new Date(r.data);
-        const [horaInicial, minutoInicial] = r.horaInicial.split(':');
-        const [horaFinal, minutoFinal] = r.horaFinal.split(':');
-        
-        const inicioReserva = new Date(dataReserva);
-        inicioReserva.setHours(parseInt(horaInicial), parseInt(minutoInicial), 0);
-        
-        const fimReserva = new Date(dataReserva);
-        fimReserva.setHours(parseInt(horaFinal), parseInt(minutoFinal), 0);
-        
-        return r.espacoAcademico.id === espaco.id && 
-               agora >= inicioReserva && 
-               agora <= fimReserva;
+    const espacosAtualizados = espacos.map(espaco => {
+      const reservasDoEspaco = reservas.filter(r => r.espacoAcademico.id === espaco.id);
+      const emUso = reservasDoEspaco.some(reserva => {
+        const dataReserva = new Date(reserva.data);
+        const horaInicial = new Date(dataReserva.setHours(...reserva.horaInicial.split(':'), 0));
+        const horaFinal = new Date(dataReserva.setHours(...reserva.horaFinal.split(':'), 0));
+        return agora >= horaInicial && agora <= horaFinal && reserva.status !== 'CANCELADO';
       });
-  
+
       return {
         ...espaco,
-        emUso: !!reservaAtual
+        status: emUso ? 'EM_USO' : 'DISPONIVEL'
       };
     });
+
+    setEspacosAtualizados(espacosAtualizados);
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      atualizarReservasDoDia(selectedDay);
+    }, 60000); // Atualiza a cada minuto
+
+    return () => clearInterval(interval);
+  }, [selectedDay, espacos]);
 
   const nextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));

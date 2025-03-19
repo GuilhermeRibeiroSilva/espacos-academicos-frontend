@@ -106,8 +106,16 @@ const ListaReservas = ({ userType }) => {
     const [actionType, setActionType] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [feedback, setFeedback] = useState({
+        open: true,
+        message: '',
+        severity: 'success'
+    });
 
-    // Função para depuração
+    const showFeedback = (message, severity = 'success') => {
+        setError(message);
+    };
+
     const logError = (error, message) => {
         console.error(message, error);
         console.log('Detalhes do erro:');
@@ -115,7 +123,7 @@ const ListaReservas = ({ userType }) => {
         console.log('Mensagem:', error.response?.data?.message || error.message);
         console.log('Dados:', error.response?.data);
         
-        setError(`${message}: ${error.response?.data?.message || error.message}`);
+        showFeedback(`${message}: ${error.response?.data?.message || error.message}`, 'error');
     };
 
     useEffect(() => {
@@ -146,6 +154,7 @@ const ListaReservas = ({ userType }) => {
             });
             carregarReservas();
             handleCloseConfirmDialog();
+            showFeedback('Utilização confirmada com sucesso', 'success');
         } catch (error) {
             logError(error, 'Erro ao confirmar utilização');
         } finally {
@@ -163,6 +172,7 @@ const ListaReservas = ({ userType }) => {
             });
             carregarReservas();
             handleCloseConfirmDialog();
+            showFeedback('Reserva cancelada com sucesso', 'success');
         } catch (error) {
             logError(error, 'Erro ao cancelar reserva');
         } finally {

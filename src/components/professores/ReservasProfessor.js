@@ -27,19 +27,13 @@ const ReservasProfessor = () => {
   const navigate = useNavigate();
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
-  
-  useEffect(() => {
-    carregarDados();
-  }, [id]);
 
   const carregarDados = async () => {
     showLoading('Carregando dados...');
     try {
-      // Carregar dados do professor
       const professorResponse = await api.get(`/professores/${id}`);
       setProfessor(professorResponse.data);
       
-      // Carregar reservas do professor
       const reservasResponse = await api.get(`/professores/${id}/reservas`);
       setReservas(reservasResponse.data);
     } catch (error) {
@@ -50,6 +44,12 @@ const ReservasProfessor = () => {
       hideLoading();
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      carregarDados();
+    }
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatarData = (dataString) => {
     const data = new Date(dataString);
