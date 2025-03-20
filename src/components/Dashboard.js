@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Grid,
-  Paper, 
-  Typography, 
+  Paper,
+  Typography,
   Box,
   IconButton,
   Chip,
   Divider
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { 
-  ChevronLeft as ChevronLeftIcon, 
-  ChevronRight as ChevronRightIcon,
-  Event as EventIcon
+import {
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO, startOfWeek, endOfWeek, addDays } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, isSameMonth, isSameDay, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { useLoading } from '../contexts/LoadingContext';
-import { useFeedback } from './common/Feedback';
-import { useNavigate } from 'react-router-dom';
 
 // Estilos do calendário
 const CalendarContainer = styled(Box)(({ theme }) => ({
@@ -84,34 +80,93 @@ const CalendarContainer = styled(Box)(({ theme }) => ({
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
-  const { showFeedback, FeedbackComponent } = useFeedback();
-  const navigate = useNavigate();
-  
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [espacos, setEspacos] = useState([]);
   const [reservas, setReservas] = useState([]);
-  const [reservasHoje, setReservasHoje] = useState([]);
-  const [reservasPorDia, setReservasPorDia] = useState({});
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [reservasDoDia, setReservasDoDia] = useState([]);
   const [espacosAtualizados, setEspacosAtualizados] = useState([]);
-  const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [diasComReserva, setDiasComReserva] = useState({});
+  const [professores, setProfessores] = useState([]);
+  const [estatisticas, setEstatisticas] = useState({
+    totalReservas: 0,
+    reservasHoje: 0,
+    espacosDisponiveis: 0,
+    totalProfessores: 0,
+    espacosEmUso: 0
+  });
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
   useEffect(() => {
     carregarDadosIniciais();
-    atualizarReservasDoDia(selectedDay);
-  }, [selectedDay]);
+    
+    // Configurar atualização automática a cada 30 segundos
+    const intervalId = setInterval(() => {
+      setLastUpdate(new Date());
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      carregarDadosIniciais();
-      atualizarReservasDoDia(selectedDay);
-    }, 60000);
+    carregarDadosAtualizados();
+  }, [lastUpdate]);
 
-    return () => clearInterval(interval);
-  }, [selectedDay]);
+  useEffect(() => {
+    atualizarReservasDoDia(selectedDay);
+  }, [selectedDay, reservas]);
+
+  useEffect(() => {
+    atualizarEstatisticas();
+  }, [reservas, espacos, professores, selectedDay, espacosAtualizados]);
+
+  const carregarDadosAtualizados = async () => {
+    try {
+      // Atualizar reservas para verificar mudanças de status
+      const reservasResponse = await api.get('/reservas');
+      const reservasData = reservasResponse.data;
+
+      // Corrigir o problema de data
+      const reservasCorrigidas = reservasData.map(reserva => {
+        if (typeof reserva.data === 'string') {
+          const [ano, mes, dia] = reserva.data.split('-');
+          reserva.dataObj = new Date(ano, mes - 1, dia);
+        }
+        return reserva;
+      });
+
+      setReservas(reservasCorrigidas);
+      
+      // Atualizar espaços também para verificar disponibilidade
+      const espacosResponse = await api.get('/espacos');
+      const espacosData = espacosResponse.data;
+      setEspacos(espacosData);
+      
+      atualizarStatusEspacos(reservasCorrigidas, espacosData);
+    } catch (error) {
+      console.error('Erro ao atualizar dados:', error);
+    }
+  };
+
+  const atualizarEstatisticas = () => {
+    const totalReservas = reservas.filter(r => r.status !== 'CANCELADO').length;
+    const reservasHoje = calcularReservasHoje(reservas);
+    
+    // Calcular espaços em uso e disponíveis corretamente
+    const espacosEmUso = espacosAtualizados.filter(e => e.emUso).length;
+    // Espaços disponíveis são aqueles que estão marcados como disponíveis E não estão em uso no momento
+    const espacosDisponiveis = espacosAtualizados.filter(e => e.disponivel && !e.emUso).length;
+    
+    const totalProfessores = professores.length;
+
+    setEstatisticas({
+      totalReservas,
+      reservasHoje,
+      espacosDisponiveis,
+      totalProfessores,
+      espacosEmUso
+    });
+  };
 
   const carregarDadosIniciais = async () => {
     try {
@@ -123,80 +178,154 @@ const Dashboard = () => {
       // Carregar reservas
       const reservasResponse = await api.get('/reservas');
       const reservasData = reservasResponse.data;
-      setReservas(reservasData);
-      
-      // Calcular espaços em uso
-      const agora = new Date();
-      const espacosAtualizados = espacosData.map(espaco => {
-        const reservasDoEspaco = reservasData.filter(r => 
-          r.espacoAcademico.id === espaco.id &&
-          r.status !== 'CANCELADO' &&
-          new Date(r.data).toDateString() === agora.toDateString()
-        );
 
-        const emUso = reservasDoEspaco.some(reserva => {
-          const horaInicial = new Date(`${reserva.data}T${reserva.horaInicial}`);
-          const horaFinal = new Date(`${reserva.data}T${reserva.horaFinal}`);
-          return agora >= horaInicial && agora <= horaFinal;
-        });
-
-        return {
-          ...espaco,
-          emUso
-        };
+      // Corrigir o problema de data
+      const reservasCorrigidas = reservasData.map(reserva => {
+        if (typeof reserva.data === 'string') {
+          const [ano, mes, dia] = reserva.data.split('-');
+          reserva.dataObj = new Date(ano, mes - 1, dia);
+        }
+        return reserva;
       });
 
-      setEspacosAtualizados(espacosAtualizados);
-      
-      // Atualizar dias com reservas
-      const diasComReserva = reservasData.reduce((acc, reserva) => {
-        const data = new Date(reserva.data);
-        const dataFormatada = format(data, 'yyyy-MM-dd');
-        acc[dataFormatada] = true;
-        return acc;
-      }, {});
-      
-      setDiasComReserva(diasComReserva);
+      setReservas(reservasCorrigidas);
+      atualizarStatusEspacos(reservasCorrigidas, espacosData);
+
+      // Marcar dias com reservas no calendário
+      const diasComReservas = {};
+      reservasCorrigidas
+        .filter(r => r.status !== 'CANCELADO')
+        .forEach(r => {
+          if (r.data) {
+            diasComReservas[r.data] = true;
+          }
+        });
+      setDiasComReserva(diasComReservas);
+
+      // Carregar professores (independente de ser admin ou não)
+      const professoresResponse = await api.get('/professores');
+      setProfessores(professoresResponse.data);
+
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados iniciais:', error);
     }
   };
 
-  const atualizarReservasDoDia = async (dia) => {
-    try {
-      const response = await api.get('/reservas');
-      const todasReservas = response.data;
+  const atualizarReservasDoDia = (dia) => {
+    const agora = new Date();
+    const reservasFiltradas = reservas.filter(reserva => {
+      let dataReserva;
+      if (reserva.dataObj) {
+        dataReserva = reserva.dataObj;
+      } else if (typeof reserva.data === 'string') {
+        const [ano, mes, diaReserva] = reserva.data.split('-');
+        dataReserva = new Date(ano, mes - 1, diaReserva);
+      } else {
+        return false;
+      }
       
-      const reservasDoDia = todasReservas.filter(reserva => {
-        const dataReserva = new Date(reserva.data);
-        return dataReserva.toDateString() === dia.toDateString();
-      });
+      return (
+        dataReserva.getDate() === dia.getDate() &&
+        dataReserva.getMonth() === dia.getMonth() &&
+        dataReserva.getFullYear() === dia.getFullYear()
+      );
+    }).map(reserva => {
+      // Verificar se a reserva está "Em Uso" atualmente
+      let dataReserva = reserva.dataObj || new Date(reserva.data);
+      const horaInicial = new Date(new Date(dataReserva).setHours(...reserva.horaInicial.split(':'), 0));
+      const horaFinal = new Date(new Date(dataReserva).setHours(...reserva.horaFinal.split(':'), 0));
+      
+      // Adicionar status "Em Uso" se a hora atual estiver dentro do período da reserva e não estiver marcada como utilizada
+      const emUso = agora >= horaInicial && agora <= horaFinal && 
+                    reserva.status !== 'CANCELADO' && 
+                    !reserva.utilizado;
+      
+      return {
+        ...reserva,
+        emUso
+      };
+    });
 
-      setReservasDoDia(reservasDoDia);
-      atualizarStatusEspacos(reservasDoDia, espacos);
-    } catch (error) {
-      console.error('Erro ao carregar reservas:', error);
-    }
+    setReservasDoDia(reservasFiltradas);
+    atualizarStatusEspacos(reservas, espacos); // Atualiza para todas as reservas, não apenas do dia
+  };
+
+  const verificarDiaComReserva = (date) => {
+    return diasComReserva[format(date, 'yyyy-MM-dd')];
   };
 
   const atualizarStatusEspacos = (reservas, espacos) => {
     const agora = new Date();
     const espacosAtualizados = espacos.map(espaco => {
       const reservasDoEspaco = reservas.filter(r => r.espacoAcademico.id === espaco.id);
+      
+      // Verifica se o espaço está em uso neste momento
       const emUso = reservasDoEspaco.some(reserva => {
-        const dataReserva = new Date(reserva.data);
-        const horaInicial = new Date(dataReserva.setHours(...reserva.horaInicial.split(':'), 0));
-        const horaFinal = new Date(dataReserva.setHours(...reserva.horaFinal.split(':'), 0));
-        return agora >= horaInicial && agora <= horaFinal && reserva.status !== 'CANCELADO';
+        const dataReserva = reserva.dataObj || new Date(reserva.data);
+        const horaInicial = new Date(new Date(dataReserva).setHours(...reserva.horaInicial.split(':'), 0));
+        const horaFinal = new Date(new Date(dataReserva).setHours(...reserva.horaFinal.split(':'), 0));
+        
+        // Um espaço está em uso se a hora atual estiver no período da reserva, 
+        // a reserva não estiver cancelada e não estiver marcada como utilizada
+        return agora >= horaInicial && 
+               agora <= horaFinal && 
+               reserva.status !== 'CANCELADO' && 
+               !reserva.utilizado;
       });
 
       return {
         ...espaco,
-        status: emUso ? 'EM_USO' : 'DISPONIVEL'
+        emUso
       };
     });
 
     setEspacosAtualizados(espacosAtualizados);
+  };
+
+  const filtrarReservasPorDia = (dia) => {
+    return reservas.filter(reserva => {
+      let dataReserva;
+      if (reserva.dataObj) {
+        dataReserva = reserva.dataObj;
+      } else if (typeof reserva.data === 'string') {
+        const [ano, mes, diaReserva] = reserva.data.split('-');
+        dataReserva = new Date(ano, mes - 1, diaReserva);
+      } else {
+        return false;
+      }
+
+      return (
+        dataReserva.getDate() === dia.getDate() &&
+        dataReserva.getMonth() === dia.getMonth() &&
+        dataReserva.getFullYear() === dia.getFullYear()
+      );
+    });
+  };
+
+  const calcularReservasHoje = (reservas) => {
+    const hoje = new Date();
+    const diaHoje = hoje.getDate();
+    const mesHoje = hoje.getMonth();
+    const anoHoje = hoje.getFullYear();
+
+    return reservas.filter(reserva => {
+      let dataReserva;
+      if (reserva.dataObj) {
+        dataReserva = reserva.dataObj;
+      } else if (typeof reserva.data === 'string') {
+        const [ano, mes, dia] = reserva.data.split('-');
+        dataReserva = new Date(ano, mes - 1, dia);
+      } else {
+        return false;
+      }
+
+      return (
+        dataReserva.getDate() === diaHoje &&
+        dataReserva.getMonth() === mesHoje &&
+        dataReserva.getFullYear() === anoHoje &&
+        reserva.status !== 'CANCELADO'
+      );
+    }).length;
   };
 
   const nextMonth = () => {
@@ -209,7 +338,6 @@ const Dashboard = () => {
 
   const onDateClick = (day) => {
     setSelectedDay(day);
-    atualizarReservasDoDia(day);
   };
 
   const renderCells = () => {
@@ -224,17 +352,14 @@ const Dashboard = () => {
     while (day <= endDate) {
       for (let i = 0; i < 7; i++) {
         const cloneDay = day;
-        const formattedDate = format(cloneDay, 'yyyy-MM-dd');
-        const hasReservation = diasComReserva[formattedDate];
-        
+        const hasReservation = verificarDiaComReserva(cloneDay);
+
         days.push(
           <div
             key={format(cloneDay, 'T')}
-            className={`calendar-day ${
-              !isSameMonth(day, monthStart) ? 'disabled' : ''
-            } ${isSameDay(day, selectedDay) ? 'selected' : ''} ${
-              hasReservation ? 'has-reservation' : ''
-            }`}
+            className={`calendar-day ${!isSameMonth(day, monthStart) ? 'disabled' : ''} 
+              ${isSameDay(day, selectedDay) ? 'selected' : ''} 
+              ${hasReservation ? 'has-reservation' : ''}`}
             onClick={() => onDateClick(cloneDay)}
           >
             {format(cloneDay, 'd')}
@@ -252,9 +377,26 @@ const Dashboard = () => {
     return hora.substring(0, 5); // Formato HH:mm
   };
 
+  // Função para determinar o status da reserva para exibição
+  const getStatusReserva = (reserva) => {
+    if (reserva.utilizado) {
+      return { label: "Utilizado", color: "#4caf50" };
+    } else if (reserva.emUso) {
+      return { label: "Em Uso", color: "#2196f3" };
+    } else if (reserva.status === 'CANCELADO') {
+      return { label: "Cancelado", color: "#f44336" };
+    } else {
+      return { label: "Pendente", color: "#ff9800" };
+    }
+  };
+
+  // Função para forçar a atualização dos dados
+  const forcarAtualizacao = () => {
+    setLastUpdate(new Date());
+  };
+
   return (
     <div>
-      {FeedbackComponent}
       <Typography variant="h4" gutterBottom>
         Meu Dashboard
       </Typography>
@@ -303,10 +445,10 @@ const Dashboard = () => {
               {espacos.length}
             </Typography>
             <Typography color="textSecondary">
-              {espacos.filter(e => e.disponivel && !espacosAtualizados.find(ea => ea.id === e.id)?.emUso).length} disponíveis
+              {estatisticas.espacosDisponiveis} disponíveis
             </Typography>
             <Typography color="textSecondary">
-              {espacosAtualizados.filter(e => e.emUso).length} em uso
+              {estatisticas.espacosEmUso} em uso
             </Typography>
           </Paper>
 
@@ -316,9 +458,7 @@ const Dashboard = () => {
                 Professores Cadastrados
               </Typography>
               <Typography variant="h3">
-                {/* Número de professores virá da API */}
-                {/* Placeholder por enquanto */}
-                1
+                {estatisticas.totalProfessores}
               </Typography>
             </Paper>
           )}
@@ -328,9 +468,7 @@ const Dashboard = () => {
               Reservas Hoje
             </Typography>
             <Typography variant="h3">
-              {isAdmin() 
-                ? reservasHoje.length 
-                : reservasHoje.filter(r => r.professor.id === user.professorId).length}
+              {estatisticas.reservasHoje}
             </Typography>
           </Paper>
         </Grid>
@@ -341,31 +479,35 @@ const Dashboard = () => {
             <Typography variant="h6" gutterBottom>
               Reservas para {format(selectedDay, 'dd/MM/yyyy')}
             </Typography>
-            
+
             {reservasDoDia.length > 0 ? (
               <Box>
-                {reservasDoDia.map((reserva, index) => (
-                  <Box key={reserva.id} sx={{ mb: 2 }}>
-                    {index > 0 && <Divider sx={{ my: 2 }} />}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                          {reserva.espacoAcademico.nome}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Horário: {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Professor: {reserva.professor.nome}
-                        </Typography>
+                {reservasDoDia.map((reserva, index) => {
+                  const status = getStatusReserva(reserva);
+                  return (
+                    <Box key={reserva.id} sx={{ mb: 2 }}>
+                      {index > 0 && <Divider sx={{ my: 2 }} />}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                            {reserva.espacoAcademico.nome}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            Horário: {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            Professor: {reserva.professor.nome}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={status.label}
+                          color={typeof status.color === 'string' ? 'default' : status.color}
+                          sx={typeof status.color === 'string' ? { bgcolor: status.color, color: 'white' } : {}}
+                        />
                       </Box>
-                      <Chip 
-                        label={reserva.utilizado ? "Utilizado" : "Pendente"}
-                        color={reserva.utilizado ? "success" : "warning"}
-                      />
                     </Box>
-                  </Box>
-                ))}
+                  );
+                })}
               </Box>
             ) : (
               <Typography variant="body1" sx={{ mt: 2 }}>

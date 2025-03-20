@@ -10,10 +10,14 @@ import {
     styled,
     Alert,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ptBR from 'date-fns/locale/pt-BR';
 import api from '../../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useFeedback } from '../common/Feedback';
-import { format } from 'date-fns';
+import { format, isBefore, startOfDay } from 'date-fns';
 
 // Componentes estilizados
 const FormContainer = styled(Box)(({ theme }) => ({
@@ -75,6 +79,25 @@ const StyledTextField = styled(TextField)({
     }
 });
 
+const StyledDatePicker = styled(DatePicker)({
+    backgroundColor: '#F2EEFF',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    width: '100%',
+    '& .MuiOutlinedInput-notchedOutline': {
+        border: 'none',
+    },
+    '&:hover .MuiOutlinedInput-notchedOutline': {
+        border: 'none',
+    },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+        border: 'none',
+    },
+    '& input': {
+        padding: '15px',
+    }
+});
+
 const ButtonContainer = styled(Box)({
     display: 'flex',
     gap: '16px',
@@ -105,7 +128,7 @@ const FormReserva = () => {
     const [formData, setFormData] = useState({
         espacoAcademico: '',
         professor: '',
-        data: '',
+        data: null,
         horaInicial: '',
         horaFinal: ''
     });
@@ -172,23 +195,12 @@ const FormReserva = () => {
             // Converter strings para objetos Date
             const dataReserva = new Date(reserva.data);
 
-            // Criar objetos Date para os horários
-            const horaInicial = new Date();
-            const horaFinal = new Date();
-
-            // Extrair horas e minutos
-            const [horaIni, minIni] = reserva.horaInicial.split(':');
-            const [horaFim, minFim] = reserva.horaFinal.split(':');
-
-            horaInicial.setHours(parseInt(horaIni), parseInt(minIni), 0);
-            horaFinal.setHours(parseInt(horaFim), parseInt(minFim), 0);
-
             setFormData({
                 espacoAcademico: reserva.espacoAcademico.id,
                 professor: reserva.professor.id,
                 data: dataReserva,
-                horaInicial: horaInicial,
-                horaFinal: horaFinal
+                horaInicial: reserva.horaInicial,
+                horaFinal: reserva.horaFinal
             });
 
             return response;
@@ -223,13 +235,18 @@ const FormReserva = () => {
     };
 
     // Função para formatar data antes de enviar
-    const formatarDataParaAPI = (dataStr) => {
-        const [dia, mes, ano] = dataStr.split('/');
-        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+    const formatarDataParaAPI = (data) => {
+        if (!data) return '';
+        return format(data, 'yyyy-MM-dd');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!formData.data) {
+            showFeedback('É necessário selecionar uma data', 'error');
+            return;
+        }
 
         if (!validarHorario(formData.horaInicial, formData.horaFinal)) {
             return;
@@ -262,6 +279,26 @@ const FormReserva = () => {
 
     const handleCancel = () => {
         navigate('/reservas');
+    };
+
+    // Função para desabilitar datas passadas
+    const desabilitarDataPassada = (date) => {
+        return isBefore(date, startOfDay(new Date()));
+    };
+
+    // Função para validar entrada de hora
+    const validarEntradaHora = (e, field) => {
+        const value = e.target.value;
+        
+        if (value) {
+            const [hora] = value.split(':').map(Number);
+            
+            if (hora < 6 || hora > 23) {
+                showFeedback('Horário deve estar entre 06:00 e 23:00', 'warning');
+            }
+        }
+        
+        setFormData({ ...formData, [field]: value });
     };
 
     return (
@@ -330,40 +367,51 @@ const FormReserva = () => {
                     </FormControl>
 
                     <FormLabel>Data</FormLabel>
-                    <StyledTextField
-                        type="text"
-                        placeholder="DD/MM/AAAA"
-                        value={formData.data}
-                        onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                        inputProps={{
-                            maxLength: 10,
-                            pattern: "\\d{2}/\\d{2}/\\d{4}"
-                        }}
-                        required
-                        fullWidth
-                    />
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+                        <StyledDatePicker
+                            value={formData.data}
+                            onChange={(newDate) => setFormData({ ...formData, data: newDate })}
+                            format="dd/MM/yyyy"
+                            disablePast
+                            shouldDisableDate={desabilitarDataPassada}
+                            slotProps={{
+                                textField: {
+                                    required: true,
+                                    placeholder: "DD/MM/AAAA",
+                                    disabled: loading,
+                                    fullWidth: true
+                                }
+                            }}
+                        />
+                    </LocalizationProvider>
 
                     <FormLabel>Horário Inicial</FormLabel>
                     <StyledTextField
                         type="time"
                         value={formData.horaInicial}
-                        onChange={(e) => setFormData({ ...formData, horaInicial: e.target.value })}
+                        onChange={(e) => validarEntradaHora(e, 'horaInicial')}
                         required
                         fullWidth
+                        inputProps={{
+                            min: "06:00",
+                            max: "23:00",
+                            step: "300" // 5 minutos
+                        }}
                     />
 
                     <FormLabel>Horário Final</FormLabel>
                     <StyledTextField
                         type="time"
                         value={formData.horaFinal}
-                        onChange={(e) => {
-                            const novoHorario = e.target.value;
-                            setFormData({ ...formData, horaFinal: novoHorario });
-                        }}
+                        onChange={(e) => validarEntradaHora(e, 'horaFinal')}
                         required
                         fullWidth
+                        inputProps={{
+                            min: "06:00",
+                            max: "23:00",
+                            step: "300" // 5 minutos
+                        }}
                     />
-
 
                     <ButtonContainer>
                         <ActionButton
