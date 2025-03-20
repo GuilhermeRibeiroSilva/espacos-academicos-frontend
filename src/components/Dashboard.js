@@ -8,18 +8,79 @@ import {
   Chip,
   Divider
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { 
   ChevronLeft as ChevronLeftIcon, 
   ChevronRight as ChevronRightIcon,
   Event as EventIcon
 } from '@mui/icons-material';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLoading } from '../contexts/LoadingContext';
-import { useFeedback } from '../components/common/Feedback';
+import { useFeedback } from './common/Feedback';
 import { useNavigate } from 'react-router-dom';
+
+// Estilos do calendário
+const CalendarContainer = styled(Box)(({ theme }) => ({
+  '.calendar-header': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '20px',
+  },
+  '.calendar-days': {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    textAlign: 'center',
+    marginBottom: '10px',
+  },
+  '.calendar-grid': {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '2px',
+  },
+  '.calendar-day': {
+    position: 'relative',
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    borderRadius: '4px',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+    },
+    '&.disabled': {
+      color: theme.palette.text.disabled,
+      cursor: 'default',
+      '&:hover': {
+        backgroundColor: 'transparent',
+      },
+    },
+    '&.selected': {
+      backgroundColor: theme.palette.primary.main,
+      color: theme.palette.primary.contrastText,
+      '&:hover': {
+        backgroundColor: theme.palette.primary.dark,
+      },
+    },
+    '&.has-reservation': {
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        bottom: '4px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '4px',
+        height: '4px',
+        borderRadius: '50%',
+        backgroundColor: '#ff6b00',
+      },
+    },
+  },
+}));
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
@@ -36,46 +97,70 @@ const Dashboard = () => {
   const [reservasDoDia, setReservasDoDia] = useState([]);
   const [espacosAtualizados, setEspacosAtualizados] = useState([]);
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
+  const [diasComReserva, setDiasComReserva] = useState({});
 
-  // Carregar dados apenas uma vez na montagem do componente
   useEffect(() => {
-    const carregarDadosIniciais = async () => {
-      try {
-        const [espacosResponse, reservasResponse] = await Promise.all([
-          api.get('/espacos'),
-          api.get('/reservas')
-        ]);
+    carregarDadosIniciais();
+    atualizarReservasDoDia(selectedDay);
+  }, [selectedDay]);
 
-        setEspacos(espacosResponse.data);
-        const todasReservas = reservasResponse.data;
-        
-        // Filtra reservas do dia atual
-        const hoje = new Date();
-        const reservasHoje = todasReservas.filter(reserva => {
-          const dataReserva = new Date(reserva.data);
-          return dataReserva.toDateString() === hoje.toDateString();
+  useEffect(() => {
+    const interval = setInterval(() => {
+      carregarDadosIniciais();
+      atualizarReservasDoDia(selectedDay);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [selectedDay]);
+
+  const carregarDadosIniciais = async () => {
+    try {
+      // Carregar espaços
+      const espacosResponse = await api.get('/espacos');
+      const espacosData = espacosResponse.data;
+      setEspacos(espacosData);
+
+      // Carregar reservas
+      const reservasResponse = await api.get('/reservas');
+      const reservasData = reservasResponse.data;
+      setReservas(reservasData);
+      
+      // Calcular espaços em uso
+      const agora = new Date();
+      const espacosAtualizados = espacosData.map(espaco => {
+        const reservasDoEspaco = reservasData.filter(r => 
+          r.espacoAcademico.id === espaco.id &&
+          r.status !== 'CANCELADO' &&
+          new Date(r.data).toDateString() === agora.toDateString()
+        );
+
+        const emUso = reservasDoEspaco.some(reserva => {
+          const horaInicial = new Date(`${reserva.data}T${reserva.horaInicial}`);
+          const horaFinal = new Date(`${reserva.data}T${reserva.horaFinal}`);
+          return agora >= horaInicial && agora <= horaFinal;
         });
 
-        setReservasDoDia(reservasHoje);
-        atualizarStatusEspacos(reservasHoje, espacosResponse.data);
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      }
-    };
-    
-    carregarDadosIniciais();
-  }, []);
+        return {
+          ...espaco,
+          emUso
+        };
+      });
 
-  // Filtrar reservas quando a data mudar ou quando as reservas forem carregadas
-  useEffect(() => {
-    if (reservas.length > 0) {
-      const dataFormatada = format(dataSelecionada, 'yyyy-MM-dd');
-      const filtradas = reservas.filter(reserva => 
-        reserva.data === dataFormatada
-      );
-      setReservasDoDia(filtradas);
+      setEspacosAtualizados(espacosAtualizados);
+      
+      // Atualizar dias com reservas
+      const diasComReserva = reservasData.reduce((acc, reserva) => {
+        const data = new Date(reserva.data);
+        const dataFormatada = format(data, 'yyyy-MM-dd');
+        acc[dataFormatada] = true;
+        return acc;
+      }, {});
+      
+      setDiasComReserva(diasComReserva);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
     }
-  }, [dataSelecionada, reservas]);
+  };
 
   const atualizarReservasDoDia = async (dia) => {
     try {
@@ -114,14 +199,6 @@ const Dashboard = () => {
     setEspacosAtualizados(espacosAtualizados);
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      atualizarReservasDoDia(selectedDay);
-    }, 60000); // Atualiza a cada minuto
-
-    return () => clearInterval(interval);
-  }, [selectedDay, espacos]);
-
   const nextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
@@ -135,163 +212,40 @@ const Dashboard = () => {
     atualizarReservasDoDia(day);
   };
 
-  const renderHeader = () => {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">
-          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-        </Typography>
-        <Box>
-          <IconButton onClick={prevMonth}>
-            <ChevronLeftIcon />
-          </IconButton>
-          <IconButton onClick={nextMonth}>
-            <ChevronRightIcon />
-          </IconButton>
-        </Box>
-      </Box>
-    );
-  };
-
-  const renderDays = () => {
-    const diasDaSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    
-    return (
-      <Grid container>
-        {diasDaSemana.map(dia => (
-          <Grid item xs key={dia} sx={{ textAlign: 'center' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-              {dia}
-            </Typography>
-          </Grid>
-        ))}
-      </Grid>
-    );
-  };
-
   const renderCells = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(monthStart);
-    const startDate = monthStart;
-    const endDate = monthEnd;
-
-    const dateFormat = 'd';
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
     const rows = [];
+    let days = [];
+    let day = startDate;
 
-    let days = eachDayOfInterval({
-      start: startDate,
-      end: endDate
-    });
-
-    // Preencher com dias vazios até o primeiro dia da semana
-    const firstDayOfMonth = startDate.getDay();
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days = [new Date(startDate.getFullYear(), startDate.getMonth(), -i), ...days];
-    }
-
-    // Preencher com dias vazios após o último dia do mês
-    const lastDayOfMonth = endDate.getDay();
-    for (let i = 1; i < 7 - lastDayOfMonth; i++) {
-      days = [...days, new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + i)];
-    }
-
-    const salasEmUso = espacos.filter(espaco => {
-      // Verifica se há alguma reserva ativa para este espaço
-      return reservas.some(reserva => {
-          if (reserva.status === 'CANCELADO') return false;
-          
-          const agora = new Date();
-          const dataReserva = new Date(reserva.data);
-          const horaInicial = new Date(`${reserva.data}T${reserva.horaInicial}`);
-          const horaFinal = new Date(`${reserva.data}T${reserva.horaFinal}`);
-          
-          // Mesma data e horário atual entre inicial e final
-          return reserva.espacoAcademico.id === espaco.id && 
-                 dataReserva.toDateString() === agora.toDateString() &&
-                 agora >= horaInicial && agora <= horaFinal;
-      });
-  });
-  
-  // Salas disponíveis são as que não estão em uso
-  const salasDisponiveis = espacos.filter(espaco => 
-      espaco.disponivel && !salasEmUso.some(s => s.id === espaco.id)
-  );
-
-    // Dividir os dias em semanas
-    let daysInWeek = [];
-    for (let i = 0; i < days.length; i++) {
-      daysInWeek.push(days[i]);
-      
-      if (daysInWeek.length === 7) {
-        rows.push(daysInWeek);
-        daysInWeek = [];
+    while (day <= endDate) {
+      for (let i = 0; i < 7; i++) {
+        const cloneDay = day;
+        const formattedDate = format(cloneDay, 'yyyy-MM-dd');
+        const hasReservation = diasComReserva[formattedDate];
+        
+        days.push(
+          <div
+            key={format(cloneDay, 'T')}
+            className={`calendar-day ${
+              !isSameMonth(day, monthStart) ? 'disabled' : ''
+            } ${isSameDay(day, selectedDay) ? 'selected' : ''} ${
+              hasReservation ? 'has-reservation' : ''
+            }`}
+            onClick={() => onDateClick(cloneDay)}
+          >
+            {format(cloneDay, 'd')}
+          </div>
+        );
+        day = addDays(day, 1);
       }
+      rows.push(days);
+      days = [];
     }
-
-    return (
-      <Box>
-        {rows.map((week, weekIndex) => (
-          <Grid container key={weekIndex}>
-            {week.map((day, dayIndex) => {
-              const formattedDate = format(day, dateFormat);
-              const dataFormatada = format(day, 'yyyy-MM-dd');
-              const reservasDoDia = reservasPorDia[dataFormatada] || [];
-              const temReserva = reservasDoDia.length > 0;
-              
-              // Se for professor, verifica se tem reserva dele neste dia
-              const temReservaProfessor = isAdmin() 
-                ? temReserva 
-                : reservasDoDia.some(r => r.professor.id === user.professorId);
-              
-              return (
-                <Grid item xs key={dayIndex}>
-                  <Box
-                    onClick={() => onDateClick(day)}
-                    sx={{
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      borderRadius: '50%',
-                      m: '4px',
-                      backgroundColor: isSameDay(day, selectedDay) 
-                        ? '#14104a' 
-                        : 'transparent',
-                      color: isSameDay(day, selectedDay)
-                        ? 'white'
-                        : !isSameMonth(day, monthStart)
-                          ? '#ccc'
-                          : 'inherit',
-                      '&:hover': {
-                        backgroundColor: isSameDay(day, selectedDay) 
-                          ? '#14104a' 
-                          : '#f5f5f5',
-                      }
-                    }}
-                  >
-                    {formattedDate}
-                    {temReservaProfessor && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          bottom: '2px',
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ff6b00',
-                        }}
-                      />
-                    )}
-                  </Box>
-                </Grid>
-              );
-            })}
-          </Grid>
-        ))}
-      </Box>
-    );
+    return rows;
   };
 
   const formatarHora = (hora) => {
@@ -309,9 +263,33 @@ const Dashboard = () => {
         {/* Calendário */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            {renderHeader()}
-            {renderDays()}
-            {renderCells()}
+            <CalendarContainer>
+              <div className="calendar-header">
+                <Typography variant="h6">
+                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                </Typography>
+                <Box>
+                  <IconButton onClick={prevMonth}>
+                    <ChevronLeftIcon />
+                  </IconButton>
+                  <IconButton onClick={nextMonth}>
+                    <ChevronRightIcon />
+                  </IconButton>
+                </Box>
+              </div>
+              <div className="calendar-days">
+                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                  <Typography key={day} variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                    {day}
+                  </Typography>
+                ))}
+              </div>
+              <div className="calendar-grid">
+                {renderCells().map((week, i) => (
+                  <React.Fragment key={i}>{week}</React.Fragment>
+                ))}
+              </div>
+            </CalendarContainer>
           </Paper>
         </Grid>
 
@@ -325,7 +303,7 @@ const Dashboard = () => {
               {espacos.length}
             </Typography>
             <Typography color="textSecondary">
-              {espacosAtualizados.filter(e => e.disponivel && !e.emUso).length} disponíveis
+              {espacos.filter(e => e.disponivel && !espacosAtualizados.find(ea => ea.id === e.id)?.emUso).length} disponíveis
             </Typography>
             <Typography color="textSecondary">
               {espacosAtualizados.filter(e => e.emUso).length} em uso

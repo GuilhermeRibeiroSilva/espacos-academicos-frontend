@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Table, 
     TableBody, 
@@ -20,6 +20,8 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useLoading } from '../../contexts/LoadingContext';
+import { useFeedback } from '../common/Feedback';
 
 // Componentes estilizados
 const PageContainer = styled(Box)({
@@ -106,35 +108,13 @@ const ListaReservas = ({ userType }) => {
     const [actionType, setActionType] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [feedback, setFeedback] = useState({
-        open: true,
-        message: '',
-        severity: 'success'
-    });
+    const { showFeedback, FeedbackComponent } = useFeedback();
 
-    const showFeedback = (message, severity = 'success') => {
-        setError(message);
-    };
-
-    const logError = (error, message) => {
-        console.error(message, error);
-        console.log('Detalhes do erro:');
-        console.log('Status:', error.response?.status);
-        console.log('Mensagem:', error.response?.data?.message || error.message);
-        console.log('Dados:', error.response?.data);
-        
-        showFeedback(`${message}: ${error.response?.data?.message || error.message}`, 'error');
-    };
-
-    useEffect(() => {
-        carregarReservas();
-    }, [userType]);
-
-    const carregarReservas = async () => {
+    // Mova a função carregarReservas para dentro do useCallback
+    const carregarReservas = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            // Se for professor, carrega apenas suas reservas
             const endpoint = userType === 'professor' ? '/reservas/professor' : '/reservas';
             console.log("Carregando reservas do endpoint:", endpoint);
             const response = await api.get(endpoint);
@@ -144,40 +124,23 @@ const ListaReservas = ({ userType }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [userType]);
 
-    const confirmarUtilizacao = async (id) => {
-        setLoading(true);
-        try {
-            await api.patch(`/reservas/${id}/confirmar`, {
-                utilizado: true
-            });
-            carregarReservas();
-            handleCloseConfirmDialog();
-            showFeedback('Utilização confirmada com sucesso', 'success');
-        } catch (error) {
-            logError(error, 'Erro ao confirmar utilização');
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        carregarReservas();
+        const interval = setInterval(carregarReservas, 60000);
+        return () => clearInterval(interval);
+    }, [carregarReservas]);
 
-    const cancelarReserva = async (id) => {
-        setLoading(true);
-        try {
-            await api.delete(`/reservas/${id}`, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            carregarReservas();
-            handleCloseConfirmDialog();
-            showFeedback('Reserva cancelada com sucesso', 'success');
-        } catch (error) {
-            logError(error, 'Erro ao cancelar reserva');
-        } finally {
-            setLoading(false);
-        }
+    // Função para depuração
+    const logError = (error, message) => {
+        console.error(message, error);
+        console.log('Detalhes do erro:');
+        console.log('Status:', error.response?.status);
+        console.log('Mensagem:', error.response?.data?.message || error.message);
+        console.log('Dados:', error.response?.data);
+        
+        setError(`${message}: ${error.response?.data?.message || error.message}`);
     };
 
     const editarReserva = (id) => {
@@ -199,13 +162,27 @@ const ListaReservas = ({ userType }) => {
         setSelectedReserva(null);
     };
 
-    const handleConfirmAction = () => {
+    const handleConfirmAction = async () => {
         if (!selectedReserva) return;
         
-        if (actionType === 'cancelar') {
-            cancelarReserva(selectedReserva.id);
-        } else if (actionType === 'confirmar') {
-            confirmarUtilizacao(selectedReserva.id);
+        try {
+            if (actionType === 'cancelar') {
+                await api.delete(`/reservas/${selectedReserva.id}`);
+                setReservas(reservas.filter(r => r.id !== selectedReserva.id));
+                showFeedback('Reserva cancelada com sucesso', 'success');
+            } else if (actionType === 'confirmar') {
+                await api.patch(`/reservas/${selectedReserva.id}/confirmar`);
+                await carregarReservas();
+                showFeedback('Utilização confirmada com sucesso', 'success');
+            }
+        } catch (error) {
+            showFeedback(
+                error.response?.data?.message || 'Erro ao processar ação',
+                'error'
+            );
+        } finally {
+            setConfirmDialogOpen(false);
+            setSelectedReserva(null);
         }
     };
 
@@ -350,6 +327,7 @@ const ListaReservas = ({ userType }) => {
                     </Button>
                 </DialogActions>
             </ConfirmDialog>
+            {FeedbackComponent}
         </PageContainer>
     );
 };
