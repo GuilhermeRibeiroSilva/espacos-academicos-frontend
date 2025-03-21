@@ -124,7 +124,14 @@ const Dashboard = () => {
     try {
       // Atualizar reservas para verificar mudanças de status
       const reservasResponse = await api.get('/reservas');
-      const reservasData = reservasResponse.data;
+      let reservasData = reservasResponse.data;
+
+      // Filtrar reservas se o usuário for professor (não admin)
+      if (!isAdmin() && user) {
+        reservasData = reservasData.filter(reserva => 
+          reserva.professor && reserva.professor.id === user.id
+        );
+      }
 
       // Corrigir o problema de data
       const reservasCorrigidas = reservasData.map(reserva => {
@@ -177,7 +184,14 @@ const Dashboard = () => {
 
       // Carregar reservas
       const reservasResponse = await api.get('/reservas');
-      const reservasData = reservasResponse.data;
+      let reservasData = reservasResponse.data;
+
+      // Filtrar reservas se o usuário for professor (não admin)
+      if (!isAdmin() && user) {
+        reservasData = reservasData.filter(reserva => 
+          reserva.professor && reserva.professor.id === user.id
+        );
+      }
 
       // Corrigir o problema de data
       const reservasCorrigidas = reservasData.map(reserva => {
