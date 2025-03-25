@@ -44,6 +44,8 @@ api.interceptors.response.use(
             // Erro de permissão
             else if (status === 403) {
                 console.error('Acesso negado:', data?.message || 'Você não tem permissão para acessar este recurso');
+                localStorage.removeItem('token');
+                window.location.href = '/login';
             }
 
             // Erro do servidor

@@ -5,41 +5,56 @@ import { isTokenExpired } from '../utils/security';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [auth, setAuth] = useState({
+        isAuthenticated: false,
+        user: null,
+        loading: true
+    });
 
     useEffect(() => {
-        const initializeAuth = () => {
-            const storedUser = localStorage.getItem('user');
-            const token = localStorage.getItem('token');
-            
-            if (storedUser && token && !isTokenExpired(token)) {
-                setUser(JSON.parse(storedUser));
-                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            } else {
-                // Limpa dados expirados
-                localStorage.removeItem('user');
-                localStorage.removeItem('token');
-                delete api.defaults.headers.common['Authorization'];
-            }
-            
-            setLoading(false);
-        };
-
-        initializeAuth();
+        const token = localStorage.getItem('token');
+        if (token) {
+            // Verificar se o token é válido
+            api.get('/auth/verify')
+                .then(response => {
+                    setAuth({
+                        isAuthenticated: true,
+                        user: response.data,
+                        loading: false
+                    });
+                })
+                .catch(() => {
+                    localStorage.removeItem('token');
+                    setAuth({
+                        isAuthenticated: false,
+                        user: null,
+                        loading: false
+                    });
+                });
+        } else {
+            setAuth(prev => ({ ...prev, loading: false }));
+        }
     }, []);
 
     const login = async (username, password) => {
         try {
             const response = await api.post('/auth/login', { username, password });
-            const { token, ...userData } = response.data;
+            const userData = response.data;
             
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(userData));
+            // Armazena dados completos do usuário
+            localStorage.setItem('user', JSON.stringify({
+                id: userData.id,
+                username: userData.username,
+                role: userData.role,
+                professorId: userData.professorId,
+                professorNome: userData.professorNome
+            }));
             
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            setUser(userData);
-            
+            setAuth({
+                isAuthenticated: true,
+                user: userData,
+                loading: false
+            });
             return userData;
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Erro ao fazer login');
@@ -58,24 +73,31 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             delete api.defaults.headers.common['Authorization'];
-            setUser(null);
+            setAuth({
+                isAuthenticated: false,
+                user: null,
+                loading: false
+            });
         }
     };
 
     const updateUserData = (newData) => {
-        const updatedUser = { ...user, ...newData };
-        setUser(updatedUser);
+        const updatedUser = { ...auth.user, ...newData };
+        setAuth({
+            ...auth,
+            user: updatedUser
+        });
         localStorage.setItem('user', JSON.stringify(updatedUser));
     };
 
-    const isAuthenticated = () => !!user;
-    const isAdmin = () => user?.role === 'ROLE_ADMIN';
-    const isProfessor = () => user?.role === 'ROLE_PROFESSOR';
+    const isAuthenticated = () => auth.isAuthenticated;
+    const isAdmin = () => auth.user?.role === 'ROLE_ADMIN';
+    const isProfessor = () => auth.user?.role === 'ROLE_PROFESSOR';
 
     return (
         <AuthContext.Provider value={{
-            user,
-            loading,
+            auth,
+            setAuth,
             login,
             logout,
             updateUserData,
@@ -83,7 +105,7 @@ export const AuthProvider = ({ children }) => {
             isAdmin,
             isProfessor
         }}>
-            {!loading && children}
+            {!auth.loading && children}
         </AuthContext.Provider>
     );
 };

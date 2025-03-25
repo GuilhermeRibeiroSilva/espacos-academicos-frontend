@@ -121,16 +121,17 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
     try {
-      await login(formData.username, formData.password);
-      navigate('/');
+      const response = await api.post('/auth/login', { email, senha });
+      localStorage.setItem('token', response.data.token);
+      // Atualizar contexto de autenticação
+      setAuth({ 
+        isAuthenticated: true,
+        user: response.data.user
+      });
+      navigate('/dashboard');
     } catch (error) {
-      setError('Usuário ou senha inválidos');
-    } finally {
-      setLoading(false);
+      setError('Credenciais inválidas');
     }
   };
 
