@@ -1,56 +1,49 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Snackbar, Alert } from '@mui/material';
 
-const Feedback = ({ message, severity, open, onClose, autoHideDuration = 6000 }) => {
-  return (
-    <Snackbar
-      open={open}
-      autoHideDuration={autoHideDuration}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-    >
-      <Alert onClose={onClose} severity={severity} sx={{ width: '100%' }}>
-        {message}
-      </Alert>
-    </Snackbar>
-  );
-};
-
 export const useFeedback = () => {
-  const [feedback, setFeedback] = useState({
+  const [feedback, setFeedback] = React.useState({
     open: false,
     message: '',
     severity: 'info',
+    autoHideDuration: 6000,
   });
 
-  const showFeedback = (message, severity = 'info') => {
+  const showFeedback = (message, severity = 'info', autoHideDuration = 6000) => {
     setFeedback({
       open: true,
       message,
       severity,
+      autoHideDuration,
     });
   };
 
   const hideFeedback = () => {
-    setFeedback({
-      ...feedback,
+    setFeedback(prev => ({
+      ...prev,
       open: false,
-    });
+    }));
   };
+
+  const FeedbackComponent = () => (
+    <Snackbar
+      open={feedback.open}
+      autoHideDuration={feedback.autoHideDuration}
+      onClose={hideFeedback}
+      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
+      <Alert onClose={hideFeedback} severity={feedback.severity} sx={{ width: '100%' }}>
+        {feedback.message}
+      </Alert>
+    </Snackbar>
+  );
 
   return {
     feedback,
     showFeedback,
     hideFeedback,
-    FeedbackComponent: (
-      <Feedback
-        open={feedback.open}
-        message={feedback.message}
-        severity={feedback.severity}
-        onClose={hideFeedback}
-      />
-    ),
+    FeedbackComponent,
   };
 };
 
-export default Feedback;
+export default useFeedback;

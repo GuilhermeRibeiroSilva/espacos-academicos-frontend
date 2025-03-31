@@ -38,7 +38,6 @@ const Layout = ({ children }) => {
   };
 
   const handleLogout = async () => {
-    handleUserMenuClose();
     await logout();
     navigate('/login');
   };
@@ -46,28 +45,24 @@ const Layout = ({ children }) => {
   // Função para obter o nome de exibição do usuário
   const getUserDisplayName = () => {
     if (!user) return '';
-    
-    if (isAdmin()) return 'Administrador';
-    
-    // Se for professor, retorna o nome do professor ou o username
-    if (isProfessor()) {
-      return user.professorNome || user.username.split('@')[0];
-    }
-    
-    return user.username.split('@')[0];
+    return user.professorNome || user.username.split('@')[0]; // Exibir apenas parte antes do @ para emails
   };
 
-  // Função para obter as iniciais do usuário para o avatar
+  // Função para obter as iniciais do usuário para o avatar de forma mais robusta
   const getUserInitials = () => {
-    if (!user || !user.username) return '?';
+    if (!user) return '';
     
-    // Se for um email, pega a primeira letra antes do @
-    if (user.username.includes('@')) {
-      return user.username.split('@')[0].charAt(0).toUpperCase();
+    if (user.professorNome) {
+      const nameParts = user.professorNome.split(' ').filter(part => part.length > 0);
+      if (nameParts.length >= 2) {
+        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+      }
+      return user.professorNome.substring(0, 2).toUpperCase();
     }
     
-    // Caso contrário, pega a primeira letra
-    return user.username.charAt(0).toUpperCase();
+    // Para emails, usar as primeiras duas letras antes do @
+    const username = user.username.split('@')[0];
+    return username.substring(0, 2).toUpperCase();
   };
 
   return (

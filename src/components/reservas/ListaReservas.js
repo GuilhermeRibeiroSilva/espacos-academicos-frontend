@@ -139,11 +139,6 @@ const ListaReservas = ({ userType }) => {
     // Função para depuração
     const logError = (error, message) => {
         console.error(message, error);
-        console.log('Detalhes do erro:');
-        console.log('Status:', error.response?.status);
-        console.log('Mensagem:', error.response?.data?.message || error.message);
-        console.log('Dados:', error.response?.data);
-
         setError(`${message}: ${error.response?.data?.message || error.message}`);
     };
 
@@ -185,10 +180,7 @@ const ListaReservas = ({ userType }) => {
             // Tratamento específico para o erro de antecedência mínima
             if (error.response?.status === 400 && 
                 error.response?.data?.message?.includes('antecedência')) {
-                showFeedback(
-                    'Não é possível cancelar reservas com menos de 30 minutos de antecedência',
-                    'error'
-                );
+                setError('Não é possível cancelar reservas com menos de 30 minutos de antecedência');
             } else {
                 showFeedback(
                     error.response?.data?.message || 'Erro ao processar ação',
@@ -202,25 +194,28 @@ const ListaReservas = ({ userType }) => {
         }
     };
 
-    // Adicione esta função para verificar o status atual da reserva
+    // Função auxiliar para tratar datas consistentemente
+    const parseDataHora = (dataString, horaString) => {
+        if (!dataString || !horaString) return null;
+        
+        const [hora, minuto] = horaString.split(':').map(Number);
+        const data = new Date(dataString);
+        
+        // Garantir que estamos usando a data sem ajustes de timezone
+        const result = new Date(data.getFullYear(), data.getMonth(), data.getDate(), hora, minuto, 0);
+        return result;
+    };
+
+    // Simplificar getReservaStatus
     const getReservaStatus = (reserva) => {
         if (reserva.utilizado) return "Utilizado";
         if (reserva.status === "CANCELADO") return "Cancelado";
         
         const agora = new Date();
-        const dataReserva = new Date(reserva.data);
+        const inicioReserva = parseDataHora(reserva.data, reserva.horaInicial);
+        const fimReserva = parseDataHora(reserva.data, reserva.horaFinal);
         
-        // Ajustar para o fuso horário local
-        dataReserva.setMinutes(dataReserva.getMinutes() + dataReserva.getTimezoneOffset());
-        
-        const horaInicial = reserva.horaInicial.split(':');
-        const horaFinal = reserva.horaFinal.split(':');
-        
-        const inicioReserva = new Date(dataReserva);
-        inicioReserva.setHours(parseInt(horaInicial[0]), parseInt(horaInicial[1]), 0);
-        
-        const fimReserva = new Date(dataReserva);
-        fimReserva.setHours(parseInt(horaFinal[0]), parseInt(horaFinal[1]), 0);
+        if (!inicioReserva || !fimReserva) return "Pendente";
         
         // Verificar se a reserva está acontecendo agora
         if (agora >= inicioReserva && agora <= fimReserva) {

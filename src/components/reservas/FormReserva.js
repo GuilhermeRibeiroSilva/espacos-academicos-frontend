@@ -79,24 +79,26 @@ const StyledTextField = styled(TextField)({
     }
 });
 
-const StyledDatePicker = styled(DatePicker)({
+const StyledDatePicker = styled(DatePicker)(({ theme }) => ({
     backgroundColor: '#F2EEFF',
     borderRadius: '8px',
     marginBottom: '20px',
     width: '100%',
-    '& .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
-    },
-    '&:hover .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
-    },
-    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
+    '& .MuiOutlinedInput-root': {
+        '& fieldset': {
+            border: 'none',
+        },
+        '&:hover fieldset': {
+            border: 'none',
+        },
+        '&.Mui-focused fieldset': {
+            border: 'none',
+        },
     },
     '& input': {
         padding: '15px',
     }
-});
+}));
 
 const ButtonContainer = styled(Box)({
     display: 'flex',
@@ -237,7 +239,10 @@ const FormReserva = () => {
     // Função para formatar data antes de enviar
     const formatarDataParaAPI = (data) => {
         if (!data) return '';
-        return format(data, 'yyyy-MM-dd');
+        
+        // Garantir que estamos usando UTC para evitar problemas com timezone
+        const dataObj = new Date(data);
+        return `${dataObj.getFullYear()}-${String(dataObj.getMonth() + 1).padStart(2, '0')}-${String(dataObj.getDate()).padStart(2, '0')}`;
     };
 
     const handleSubmit = async (e) => {

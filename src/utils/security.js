@@ -30,7 +30,13 @@ export const validatePassword = (password) => {
 };
 
 export const sanitizeInput = (input) => {
-    return input.replace(/[<>]/g, '');
+    if (!input || typeof input !== 'string') return '';
+    
+    // Mais abrangente que apenas remover < e >
+    return input
+        .replace(/[<>]/g, '') 
+        .replace(/javascript:/gi, '')
+        .replace(/on\w+=/gi, '');
 };
 
 export const isTokenExpired = (token) => {
@@ -48,4 +54,9 @@ export const isTokenExpired = (token) => {
     } catch (e) {
         return true;
     }
+};
+
+export const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
 };

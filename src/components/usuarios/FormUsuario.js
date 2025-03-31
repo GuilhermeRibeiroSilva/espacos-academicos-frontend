@@ -68,6 +68,27 @@ const FormUsuario = () => {
     setLoading(true);
     setError(null);
 
+    // Validar campo de username
+    if (!formData.username.includes('@')) {
+      setError('O username deve ser um email válido');
+      setLoading(false);
+      return;
+    }
+
+    // Validar campo de senha em caso de novo usuário
+    if (!id && (!formData.password || formData.password.length < 6)) {
+      setError('A senha deve ter pelo menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
+
+    // Validar seleção de professor quando role é professor
+    if (formData.role === 'ROLE_PROFESSOR' && !formData.professorId) {
+      setError('É necessário selecionar um professor');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (id) {
         await api.put(`/api/usuarios/${id}`, formData);

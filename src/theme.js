@@ -6,14 +6,42 @@ const theme = createTheme({
       main: '#14104a', // Azul escuro UCB
       light: '#3f3a7d',
       dark: '#0d0a2e',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#F2E085', // Laranja UCB
-      light: '#ff8c33',
-      dark: '#cc5500',
+      main: '#F2E085', // Amarelo UCB (foi chamado de laranja incorretamente)
+      light: '#f5e9a9',
+      dark: '#c9b96e',
+      contrastText: '#000000',
+    },
+    error: {
+      main: '#f44336',
+      light: '#e57373',
+      dark: '#d32f2f',
+    },
+    warning: {
+      main: '#ff9800',
+      light: '#ffb74d',
+      dark: '#f57c00',
+    },
+    info: {
+      main: '#2196f3',
+      light: '#64b5f6',
+      dark: '#1976d2',
+    },
+    success: {
+      main: '#4caf50',
+      light: '#81c784',
+      dark: '#388e3c',
     },
     background: {
       default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#333333',
+      secondary: '#757575',
+      disabled: '#9e9e9e',
     },
   },
   typography: {
@@ -55,6 +83,24 @@ const theme = createTheme({
       styleOverrides: {
         rounded: {
           borderRadius: 12,
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          marginBottom: 16,
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          padding: 12,
+        },
+        head: {
+          fontWeight: 600,
+          backgroundColor: '#f5f5f5',
         },
       },
     },

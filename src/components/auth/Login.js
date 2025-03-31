@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import {
   Box,
   TextField,
@@ -104,15 +105,16 @@ const Login = () => {
     username: '',
     password: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }));
   };
 
   const handleClickShowPassword = () => {
@@ -121,17 +123,37 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.username)) {
+      setError('Por favor, insira um email válido');
+      return;
+    }
+    
+    // Validar preenchimento de senha
+    if (!formData.password.trim()) {
+      setError('Por favor, insira sua senha');
+      return;
+    }
+    
+    setLoading(true);
+    
     try {
-      const response = await api.post('/auth/login', { email, senha });
-      localStorage.setItem('token', response.data.token);
-      // Atualizar contexto de autenticação
-      setAuth({ 
-        isAuthenticated: true,
-        user: response.data.user
-      });
-      navigate('/dashboard');
-    } catch (error) {
-      setError('Credenciais inválidas');
+      const success = await login(formData.username, formData.password);
+      if (success) {
+        navigate('/dashboard');
+      } else {
+        // Este bloco será executado se login retornar false, mas não lançar exceção
+        setError('Credenciais inválidas');
+      }
+    } catch (err) {
+      // Extrair mensagem de erro mais específica da API, se disponível
+      const errorMessage = err.response?.data?.message || 'Falha no login. Verifique suas credenciais.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -178,7 +200,7 @@ const Login = () => {
           <form onSubmit={handleSubmit}>
             <StyledTextField
               fullWidth
-              label="Usuário"
+              label="Username"
               name="username"
               value={formData.username}
               onChange={handleChange}
@@ -188,7 +210,7 @@ const Login = () => {
 
             <StyledTextField
               fullWidth
-              label="Senha"
+              label="Password"
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={formData.password}

@@ -3,18 +3,22 @@ import { Backdrop, CircularProgress, Typography, Box } from '@mui/material';
 
 const LoadingContext = createContext(null);
 
+// Adicionar um contador para múltiplas chamadas de loading
 export const LoadingProvider = ({ children }) => {
-  const [loading, setLoading] = useState(false);
+  const [loadingCount, setLoadingCount] = useState(0);
   const [message, setMessage] = useState('Carregando...');
 
   const showLoading = (msg = 'Carregando...') => {
     setMessage(msg);
-    setLoading(true);
+    setLoadingCount(prev => prev + 1);
   };
 
   const hideLoading = () => {
-    setLoading(false);
+    setLoadingCount(prev => Math.max(0, prev - 1));
   };
+
+  // Só mostra o loading se o contador for > 0
+  const isLoading = loadingCount > 0;
 
   return (
     <LoadingContext.Provider value={{ showLoading, hideLoading }}>
@@ -25,7 +29,7 @@ export const LoadingProvider = ({ children }) => {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           flexDirection: 'column',
         }}
-        open={loading}
+        open={isLoading}
       >
         <CircularProgress color="inherit" />
         <Box mt={2}>

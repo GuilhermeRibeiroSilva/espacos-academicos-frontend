@@ -1,111 +1,119 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../services/api';
-import { isTokenExpired } from '../utils/security';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+// Ajuste o caminho conforme a estrutura do seu projeto
+import api from '../services/api'; // ou ajuste para o caminho correto
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [auth, setAuth] = useState({
-        isAuthenticated: false,
-        user: null,
-        loading: true
+    const [auth, setAuth] = useState(() => {
+        // Verificar se existe dado no localStorage antes de tentar fazer o parse
+        const storedAuth = localStorage.getItem('auth');
+        return storedAuth ? JSON.parse(storedAuth) : {
+            user: null,
+            isAuthenticated: false,
+            isAdmin: false,
+            isProfessor: false
+        };
     });
 
     useEffect(() => {
+        // Verificar se existe dado no localStorage antes de tentar fazer o parse
+        const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
-        if (token) {
-            // Verificar se o token é válido
-            api.get('/auth/verify')
-                .then(response => {
-                    setAuth({
-                        isAuthenticated: true,
-                        user: response.data,
-                        loading: false
-                    });
-                })
-                .catch(() => {
-                    localStorage.removeItem('token');
-                    setAuth({
-                        isAuthenticated: false,
-                        user: null,
-                        loading: false
-                    });
+        
+        if (storedUser && token) {
+            try {
+                // Decodificar token para verificar expiração
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(window.atob(base64));
+                
+                // Se token expirado, fazer logout
+                if (payload.exp * 1000 < Date.now()) {
+                    logout();
+                    return;
+                }
+                
+                const user = JSON.parse(storedUser);
+                const isAuthenticated = true;
+                const isAdmin = user.role === 'ROLE_ADMIN';
+                const isProfessor = user.role === 'ROLE_PROFESSOR';
+                
+                setAuth({ 
+                    user, 
+                    isAuthenticated,
+                    isAdmin,
+                    isProfessor
                 });
-        } else {
-            setAuth(prev => ({ ...prev, loading: false }));
+            } catch (error) {
+                console.error('Erro ao processar dados do usuário:', error);
+                // Se houver erro, limpa os dados corrompidos
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                localStorage.removeItem('auth');
+            }
         }
     }, []);
 
     const login = async (username, password) => {
         try {
             const response = await api.post('/auth/login', { username, password });
-            const userData = response.data;
+            const { token, ...user } = response.data;
             
-            // Armazena dados completos do usuário
-            localStorage.setItem('user', JSON.stringify({
-                id: userData.id,
-                username: userData.username,
-                role: userData.role,
-                professorId: userData.professorId,
-                professorNome: userData.professorNome
-            }));
+            const isAdmin = user.role === 'ROLE_ADMIN';
+            const isProfessor = user.role === 'ROLE_PROFESSOR';
             
-            setAuth({
+            const authData = { 
+                user, 
                 isAuthenticated: true,
-                user: userData,
-                loading: false
-            });
-            return userData;
+                isAdmin,
+                isProfessor
+            };
+            
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('auth', JSON.stringify(authData));
+            
+            setAuth(authData);
+            
+            return true;
         } catch (error) {
-            throw new Error(error.response?.data?.message || 'Erro ao fazer login');
+            console.error('Erro no login:', error);
+            return false;
         }
     };
 
     const logout = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                await api.post('/auth/logout');
-            }
+            // Tenta fazer logout no servidor, se aplicável
+            // await api.post('/auth/logout');
         } catch (error) {
             console.error('Erro ao fazer logout:', error);
         } finally {
+            // Mesmo se falhar no servidor, limpa os dados locais
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            delete api.defaults.headers.common['Authorization'];
-            setAuth({
+            localStorage.removeItem('auth');
+            
+            setAuth({ 
+                user: null, 
                 isAuthenticated: false,
-                user: null,
-                loading: false
+                isAdmin: false,
+                isProfessor: false
             });
         }
     };
 
-    const updateUserData = (newData) => {
-        const updatedUser = { ...auth.user, ...newData };
-        setAuth({
-            ...auth,
-            user: updatedUser
-        });
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-    };
-
-    const isAuthenticated = () => auth.isAuthenticated;
-    const isAdmin = () => auth.user?.role === 'ROLE_ADMIN';
-    const isProfessor = () => auth.user?.role === 'ROLE_PROFESSOR';
-
     return (
-        <AuthContext.Provider value={{
-            auth,
-            setAuth,
+        <AuthContext.Provider value={{ 
+            user: auth.user,
+            isAuthenticated: auth.isAuthenticated,
+            isAdmin: auth.isAdmin,
+            isProfessor: auth.isProfessor,
             login,
-            logout,
-            updateUserData,
-            isAuthenticated,
-            isAdmin,
-            isProfessor
+            logout
         }}>
-            {!auth.loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };

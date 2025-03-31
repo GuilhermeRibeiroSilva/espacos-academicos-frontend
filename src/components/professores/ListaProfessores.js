@@ -70,24 +70,24 @@ const ListaProfessores = () => {
 
     const handleConfirmExcluir = async () => {
         if (!professorParaExcluir) return;
-      
+
         showLoading('Excluindo professor...');
         try {
-          await api.delete(`/professores/${professorParaExcluir.id}?force=true`); // Removido /api/ e adicionado force=true
-          showFeedback('Professor excluído com sucesso', 'success');
-          carregarProfessores();
+            await api.delete(`/professores/${professorParaExcluir.id}?force=true`);
+            showFeedback('Professor excluído com sucesso', 'success');
+            carregarProfessores();
         } catch (error) {
-          console.error('Erro ao excluir professor:', error);
-          showFeedback(
-            error.response?.data?.message || 'Erro ao excluir professor',
-            'error'
-          );
+            console.error('Erro ao excluir professor:', error);
+            showFeedback(
+                error.response?.data?.message || 'Erro ao excluir professor',
+                'error'
+            );
         } finally {
-          hideLoading();
-          setConfirmDialogOpen(false);
-          setProfessorParaExcluir(null);
+            hideLoading();
+            setConfirmDialogOpen(false);
+            setProfessorParaExcluir(null);
         }
-      };
+    };
 
     return (
         <div>
@@ -189,7 +189,7 @@ const ListaProfessores = () => {
                 <DialogContent>
                     <DialogContentText>
                         Tem certeza que deseja excluir o professor "{professorParaExcluir?.nome}"?
-                        Esta ação também excluirá todas as reservas associadas a este professor.
+                        <strong> Esta ação também excluirá todas as reservas associadas a este professor e não pode ser desfeita.</strong>
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

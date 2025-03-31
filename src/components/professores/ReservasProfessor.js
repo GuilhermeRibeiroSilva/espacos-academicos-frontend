@@ -28,13 +28,15 @@ const ReservasProfessor = () => {
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
 
+  // Verificar e padronizar caminho da API
   const carregarDados = async () => {
     showLoading('Carregando dados...');
     try {
-      const professorResponse = await api.get(`/professores/${id}`);
+      // Verificar se '/api' é necessário aqui
+      const professorResponse = await api.get(`/api/professores/${id}`);
       setProfessor(professorResponse.data);
       
-      const reservasResponse = await api.get(`/professores/${id}/reservas`);
+      const reservasResponse = await api.get(`/api/professores/${id}/reservas`);
       setReservas(reservasResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -49,11 +51,19 @@ const ReservasProfessor = () => {
     if (id) {
       carregarDados();
     }
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id]);
 
+  // Melhorar tratamento de datas
   const formatarData = (dataString) => {
-    const data = new Date(dataString);
-    return format(data, 'dd/MM/yyyy', { locale: ptBR });
+    try {
+      // Garantir que não haja problemas com timezone
+      const [ano, mes, dia] = dataString.split('-');
+      const data = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+      return format(data, 'dd/MM/yyyy', { locale: ptBR });
+    } catch (e) {
+      console.error("Erro ao formatar data:", e);
+      return dataString; // Fallback para o formato original
+    }
   };
 
   const formatarHora = (horaString) => {

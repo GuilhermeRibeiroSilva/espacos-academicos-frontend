@@ -24,7 +24,19 @@ api.interceptors.request.use(
 // Interceptor para tratamento de erros
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        // Se for erro de rede (sem resposta do servidor) e não for uma retry
+        if (!error.response && !error.config._retry && error.config) {
+            error.config._retry = true;
+            try {
+                // Espera um tempo antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return api(error.config);
+            } catch (retryError) {
+                return Promise.reject(retryError);
+            }
+        }
+        
         // Verifica se há resposta do servidor
         if (error.response) {
             const { status, data } = error.response;

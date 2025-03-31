@@ -28,6 +28,22 @@ import { useFeedback } from '../common/Feedback';
 import { useLoading } from '../../contexts/LoadingContext';
 import api from '../../services/api';
 
+// Criar um estilo base para campos de formulário
+const formFieldStyles = {
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: '#F2EEFF',
+    borderRadius: '8px',
+    '& fieldset': {
+      border: 'none',
+    },
+  },
+  marginBottom: '20px',
+};
+
+// E aplicar nos componentes styled
+const StyledTextField = styled(TextField)(formFieldStyles);
+const StyledFormControl = styled(FormControl)(formFieldStyles);
+
 // Estilos personalizados
 const FormContainer = styled(Box)({
   backgroundColor: '#0F1140',
@@ -35,34 +51,6 @@ const FormContainer = styled(Box)({
   padding: '30px',
   width: '100%',
   boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
-});
-
-const StyledTextField = styled(TextField)({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    '& fieldset': {
-      border: 'none',
-    },
-  },
-  '& .MuiInputLabel-root': {
-    color: 'white',
-  },
-  marginBottom: '20px',
-});
-
-const StyledFormControl = styled(FormControl)({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    '& fieldset': {
-      border: 'none',
-    },
-  },
-  '& .MuiInputLabel-root': {
-    color: 'white',
-  },
-  marginBottom: '20px',
 });
 
 const FormLabel = styled(Typography)({
@@ -124,7 +112,9 @@ const GerenciarUsuarios = () => {
   const [professores, setProfessores] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [resetSenhaDialogOpen, setResetSenhaDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUsuario, setSelectedUsuario] = useState(null);
+  const [usuarioToDelete, setUsuarioToDelete] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -180,6 +170,16 @@ const GerenciarUsuarios = () => {
     setSelectedUsuario(null);
   };
 
+  const handleOpenDeleteDialog = (usuario) => {
+    setUsuarioToDelete(usuario);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setUsuarioToDelete(null);
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -187,7 +187,27 @@ const GerenciarUsuarios = () => {
     });
   };
 
+  // Adicionar validações robustas para emails e senhas
   const handleSubmit = async () => {
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.username)) {
+      showFeedback('Por favor, insira um email válido', 'error');
+      return;
+    }
+
+    // Validar senha
+    if (formData.password.length < 6) {
+      showFeedback('A senha deve ter pelo menos 6 caracteres', 'error');
+      return;
+    }
+
+    // Validar seleção de professor
+    if (!formData.professorId) {
+      showFeedback('Selecione um professor', 'error');
+      return;
+    }
+
     showLoading('Criando usuário...');
     try {
       await api.post('/admin/usuarios/professor', formData);
@@ -229,14 +249,12 @@ const GerenciarUsuarios = () => {
     }
   };
 
-  const handleDesativarUsuario = async (id) => {
-    if (!window.confirm('Tem certeza que deseja desativar este usuário?')) {
-      return;
-    }
-
+  const confirmDelete = async () => {
+    if (!usuarioToDelete) return;
+    
     showLoading('Desativando usuário...');
     try {
-      await api.delete(`/admin/usuarios/${id}`);
+      await api.delete(`/admin/usuarios/${usuarioToDelete.id}`);
       showFeedback('Usuário desativado com sucesso', 'success');
       carregarDados();
     } catch (error) {
@@ -247,6 +265,7 @@ const GerenciarUsuarios = () => {
       );
     } finally {
       hideLoading();
+      handleCloseDeleteDialog();
     }
   };
 
@@ -288,45 +307,53 @@ const GerenciarUsuarios = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {usuarios.map((usuario) => (
-              <TableRow key={usuario.id}>
-                <TableCell>{usuario.username}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={
-                      usuario.role === 'ROLE_ADMIN' ? 'Administrador' : 'Professor'
-                    }
-                    color={usuario.role === 'ROLE_ADMIN' ? 'primary' : 'secondary'}
-                  />
-                </TableCell>
-                <TableCell>{usuario.professorNome || '-'}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={() => handleOpenResetSenhaDialog(usuario)}
-                    sx={{
-                      mr: 1,
-                      bgcolor: '#0F1140',
-                      '&:hover': { bgcolor: '#1a1b4b' }
-                    }}
-                  >
-                    Resetar Senha
-                  </Button>
-                  {usuario.role !== 'ROLE_ADMIN' && (
+            {usuarios.length > 0 ? (
+              usuarios.map((usuario) => (
+                <TableRow key={usuario.id}>
+                  <TableCell>{usuario.username}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={
+                        usuario.role === 'ROLE_ADMIN' ? 'Administrador' : 'Professor'
+                      }
+                      color={usuario.role === 'ROLE_ADMIN' ? 'primary' : 'secondary'}
+                    />
+                  </TableCell>
+                  <TableCell>{usuario.professorNome || '-'}</TableCell>
+                  <TableCell>
                     <Button
                       variant="contained"
-                      color="error"
+                      color="primary"
                       size="small"
-                      onClick={() => handleDesativarUsuario(usuario.id)}
+                      onClick={() => handleOpenResetSenhaDialog(usuario)}
+                      sx={{
+                        mr: 1,
+                        bgcolor: '#0F1140',
+                        '&:hover': { bgcolor: '#1a1b4b' }
+                      }}
                     >
-                      Excluir
+                      Resetar Senha
                     </Button>
-                  )}
+                    {usuario.role !== 'ROLE_ADMIN' && (
+                      <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        onClick={() => handleOpenDeleteDialog(usuario)}
+                      >
+                        Excluir
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  Nenhum usuário cadastrado
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -452,6 +479,41 @@ const GerenciarUsuarios = () => {
             <SaveButton onClick={handleResetSenha}>
               Resetar
             </SaveButton>
+          </ButtonContainer>
+        </StyledDialogActions>
+      </Dialog>
+
+      {/* Dialog para confirmar exclusão - ESTILIZADO */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={handleCloseDeleteDialog}
+        PaperProps={{
+          style: {
+            backgroundColor: '#0F1140',
+            borderRadius: '10px',
+            maxWidth: '500px',
+            width: '100%'
+          }
+        }}
+      >
+        <StyledDialogTitle>Confirmar Exclusão</StyledDialogTitle>
+        <StyledDialogContent>
+          <Typography color="white">
+            Tem certeza que deseja excluir o usuário {usuarioToDelete?.username}?
+          </Typography>
+        </StyledDialogContent>
+        <StyledDialogActions>
+          <ButtonContainer>
+            <CancelButton onClick={handleCloseDeleteDialog}>
+              Cancelar
+            </CancelButton>
+            <Button
+              onClick={confirmDelete}
+              variant="contained"
+              color="error"
+            >
+              Excluir
+            </Button>
           </ButtonContainer>
         </StyledDialogActions>
       </Dialog>

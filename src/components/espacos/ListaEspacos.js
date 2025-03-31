@@ -31,7 +31,7 @@ const ListaEspacos = () => {
 
   useEffect(() => {
     carregarEspacos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Dependência intencional apenas na montagem do componente
   }, []);
 
   const carregarEspacos = async () => {
@@ -86,6 +86,27 @@ const ListaEspacos = () => {
     setEspacoParaExcluir(null);
   };
 
+  const handleAlternarDisponibilidade = async (espaco) => {
+    showLoading(`Tornando espaço ${espaco.disponivel ? 'indisponível' : 'disponível'}...`);
+    try {
+      const novoStatus = !espaco.disponivel;
+      await api.patch(`/espacos/${espaco.id}/disponibilidade`, { disponivel: novoStatus });
+      showFeedback(
+        `Espaço ${novoStatus ? 'disponibilizado' : 'indisponibilizado'} com sucesso`, 
+        'success'
+      );
+      carregarEspacos();
+    } catch (error) {
+      console.error('Erro ao alterar disponibilidade:', error);
+      showFeedback(
+        error.response?.data?.message || 'Erro ao alterar disponibilidade', 
+        'error'
+      );
+    } finally {
+      hideLoading();
+    }
+  };
+
   return (
     <div>
       {FeedbackComponent}
@@ -125,37 +146,54 @@ const ListaEspacos = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {espacos.map((espaco) => (
-                <TableRow key={espaco.id}>
-                  <TableCell>{espaco.sigla}</TableCell>
-                  <TableCell>{espaco.nome}</TableCell>
-                  <TableCell>{espaco.capacidadeAlunos}</TableCell>
-                  <TableCell>{espaco.disponivel ? 'Disponível' : 'Indisponível'}</TableCell>
-                  <TableCell align="center">
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      onClick={() => handleEditar(espaco.id)}
-                      sx={{ 
-                        mr: 1, 
-                        bgcolor: '#0F1140', 
-                        '&:hover': { bgcolor: '#1a1b4b' } 
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      size="small"
-                      onClick={() => handleExcluirClick(espaco)}
-                    >
-                      Excluir
-                    </Button>
+              {espacos.length > 0 ? (
+                espacos.map((espaco) => (
+                  <TableRow key={espaco.id}>
+                    <TableCell>{espaco.sigla}</TableCell>
+                    <TableCell>{espaco.nome}</TableCell>
+                    <TableCell>{espaco.capacidadeAlunos}</TableCell>
+                    <TableCell>{espaco.disponivel ? 'Disponível' : 'Indisponível'}</TableCell>
+                    <TableCell align="center">
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleEditar(espaco.id)}
+                        sx={{ 
+                          mr: 1, 
+                          bgcolor: '#0F1140', 
+                          '&:hover': { bgcolor: '#1a1b4b' } 
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        onClick={() => handleExcluirClick(espaco)}
+                      >
+                        Excluir
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color={espaco.disponivel ? "warning" : "success"}
+                        size="small"
+                        onClick={() => handleAlternarDisponibilidade(espaco)}
+                        sx={{ mr: 1 }}
+                      >
+                        {espaco.disponivel ? "Tornar Indisponível" : "Tornar Disponível"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    Nenhum espaço acadêmico cadastrado
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </TableContainer>

@@ -97,13 +97,54 @@ const Dashboard = () => {
   });
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
+  // Adicionar esta função no início do componente
+  const normalizarData = (data) => {
+    if (!data) return null;
+    
+    if (data instanceof Date) return data;
+    
+    if (typeof data === 'string') {
+      const [ano, mes, dia] = data.split('-');
+      return new Date(ano, mes - 1, dia);
+    }
+    
+    return null;
+  };
+
+  // Função simplificada para determinar status da reserva
+  const determinarStatusReserva = (reserva) => {
+    const agora = new Date();
+    const dataReserva = normalizarData(reserva.data);
+    
+    if (!dataReserva) return { status: 'PENDENTE', label: "Pendente", color: "#ff9800" };
+    
+    const horaInicial = new Date(new Date(dataReserva).setHours(...reserva.horaInicial.split(':'), 0));
+    const horaFinal = new Date(new Date(dataReserva).setHours(...reserva.horaFinal.split(':'), 0));
+    
+    if (reserva.status === 'CANCELADO') {
+      return { status: 'CANCELADO', label: "Cancelado", color: "#f44336" };
+    }
+    
+    if (reserva.utilizado) {
+      return { status: 'UTILIZADO', label: "Utilizado", color: "#4caf50" };
+    }
+    
+    if (agora >= horaInicial && agora <= horaFinal) {
+      return { status: 'EM_USO', label: "Em Uso", color: "#2196f3" };
+    }
+    
+    return { status: 'PENDENTE', label: "Pendente", color: "#ff9800" };
+  };
+
   useEffect(() => {
     carregarDadosIniciais();
-    
-    // Configurar atualização automática a cada 30 segundos
+  }, []);
+
+  useEffect(() => {
     const intervalId = setInterval(() => {
-      setLastUpdate(new Date());
-    }, 30000);
+      carregarDadosAtualizados();
+      // Atualizar diretamente em vez de usar lastUpdate como intermediário
+    }, 30000); 
     
     return () => clearInterval(intervalId);
   }, []);
@@ -135,10 +176,7 @@ const Dashboard = () => {
 
       // Corrigir o problema de data
       const reservasCorrigidas = reservasData.map(reserva => {
-        if (typeof reserva.data === 'string') {
-          const [ano, mes, dia] = reserva.data.split('-');
-          reserva.dataObj = new Date(ano, mes - 1, dia);
-        }
+        reserva.dataObj = normalizarData(reserva.data);
         return reserva;
       });
 
@@ -195,23 +233,24 @@ const Dashboard = () => {
 
       // Corrigir o problema de data
       const reservasCorrigidas = reservasData.map(reserva => {
-        if (typeof reserva.data === 'string') {
-          const [ano, mes, dia] = reserva.data.split('-');
-          reserva.dataObj = new Date(ano, mes - 1, dia);
-        }
+        reserva.dataObj = normalizarData(reserva.data);
         return reserva;
       });
 
       setReservas(reservasCorrigidas);
       atualizarStatusEspacos(reservasCorrigidas, espacosData);
 
-      // Marcar dias com reservas no calendário
+      // Modificar a função setDiasComReserva
       const diasComReservas = {};
       reservasCorrigidas
         .filter(r => r.status !== 'CANCELADO')
         .forEach(r => {
           if (r.data) {
-            diasComReservas[r.data] = true;
+            // Garantir que usamos o formato yyyy-MM-dd como chave
+            const dataFormatada = typeof r.data === 'string' 
+              ? r.data 
+              : format(r.data, 'yyyy-MM-dd');
+            diasComReservas[dataFormatada] = true;
           }
         });
       setDiasComReserva(diasComReservas);
@@ -226,46 +265,29 @@ const Dashboard = () => {
   };
 
   const atualizarReservasDoDia = (dia) => {
-    const agora = new Date();
-    const reservasFiltradas = reservas.filter(reserva => {
-      let dataReserva;
-      if (reserva.dataObj) {
-        dataReserva = reserva.dataObj;
-      } else if (typeof reserva.data === 'string') {
-        const [ano, mes, diaReserva] = reserva.data.split('-');
-        dataReserva = new Date(ano, mes - 1, diaReserva);
-      } else {
-        return false;
-      }
-      
-      return (
-        dataReserva.getDate() === dia.getDate() &&
-        dataReserva.getMonth() === dia.getMonth() &&
-        dataReserva.getFullYear() === dia.getFullYear()
-      );
-    }).map(reserva => {
-      // Verificar se a reserva está "Em Uso" atualmente
-      let dataReserva = reserva.dataObj || new Date(reserva.data);
-      const horaInicial = new Date(new Date(dataReserva).setHours(...reserva.horaInicial.split(':'), 0));
-      const horaFinal = new Date(new Date(dataReserva).setHours(...reserva.horaFinal.split(':'), 0));
-      
-      // Adicionar status "Em Uso" se a hora atual estiver dentro do período da reserva e não estiver marcada como utilizada
-      const emUso = agora >= horaInicial && agora <= horaFinal && 
-                    reserva.status !== 'CANCELADO' && 
-                    !reserva.utilizado;
-      
-      return {
-        ...reserva,
-        emUso
-      };
-    });
+    const diaFormatado = format(dia, 'yyyy-MM-dd');
+    
+    const reservasFiltradas = reservas
+      .filter(reserva => {
+        const dataReserva = normalizarData(reserva.data);
+        if (!dataReserva) return false;
+        return format(dataReserva, 'yyyy-MM-dd') === diaFormatado;
+      })
+      .map(reserva => {
+        const status = determinarStatusReserva(reserva);
+        return {
+          ...reserva,
+          emUso: status.status === 'EM_USO'
+        };
+      });
 
     setReservasDoDia(reservasFiltradas);
-    atualizarStatusEspacos(reservas, espacos); // Atualiza para todas as reservas, não apenas do dia
   };
 
+  // Modificar a função verificarDiaComReserva
   const verificarDiaComReserva = (date) => {
-    return diasComReserva[format(date, 'yyyy-MM-dd')];
+    const dataFormatada = format(date, 'yyyy-MM-dd');
+    return !!diasComReserva[dataFormatada];
   };
 
   const atualizarStatusEspacos = (reservas, espacos) => {
@@ -275,16 +297,8 @@ const Dashboard = () => {
       
       // Verifica se o espaço está em uso neste momento
       const emUso = reservasDoEspaco.some(reserva => {
-        const dataReserva = reserva.dataObj || new Date(reserva.data);
-        const horaInicial = new Date(new Date(dataReserva).setHours(...reserva.horaInicial.split(':'), 0));
-        const horaFinal = new Date(new Date(dataReserva).setHours(...reserva.horaFinal.split(':'), 0));
-        
-        // Um espaço está em uso se a hora atual estiver no período da reserva, 
-        // a reserva não estiver cancelada e não estiver marcada como utilizada
-        return agora >= horaInicial && 
-               agora <= horaFinal && 
-               reserva.status !== 'CANCELADO' && 
-               !reserva.utilizado;
+        const statusReserva = determinarStatusReserva(reserva);
+        return statusReserva.status === 'EM_USO';
       });
 
       return {
@@ -298,15 +312,7 @@ const Dashboard = () => {
 
   const filtrarReservasPorDia = (dia) => {
     return reservas.filter(reserva => {
-      let dataReserva;
-      if (reserva.dataObj) {
-        dataReserva = reserva.dataObj;
-      } else if (typeof reserva.data === 'string') {
-        const [ano, mes, diaReserva] = reserva.data.split('-');
-        dataReserva = new Date(ano, mes - 1, diaReserva);
-      } else {
-        return false;
-      }
+      let dataReserva = reserva.dataObj || normalizarData(reserva.data);
 
       return (
         dataReserva.getDate() === dia.getDate() &&
@@ -323,15 +329,7 @@ const Dashboard = () => {
     const anoHoje = hoje.getFullYear();
 
     return reservas.filter(reserva => {
-      let dataReserva;
-      if (reserva.dataObj) {
-        dataReserva = reserva.dataObj;
-      } else if (typeof reserva.data === 'string') {
-        const [ano, mes, dia] = reserva.data.split('-');
-        dataReserva = new Date(ano, mes - 1, dia);
-      } else {
-        return false;
-      }
+      let dataReserva = reserva.dataObj || normalizarData(reserva.data);
 
       return (
         dataReserva.getDate() === diaHoje &&
@@ -340,6 +338,14 @@ const Dashboard = () => {
         reserva.status !== 'CANCELADO'
       );
     }).length;
+  };
+
+  const converterData = (data) => {
+    if (typeof data === 'string') {
+      const [ano, mes, dia] = data.split('-');
+      return new Date(ano, mes - 1, dia);
+    }
+    return data;
   };
 
   const nextMonth = () => {
@@ -393,15 +399,8 @@ const Dashboard = () => {
 
   // Função para determinar o status da reserva para exibição
   const getStatusReserva = (reserva) => {
-    if (reserva.utilizado) {
-      return { label: "Utilizado", color: "#4caf50" };
-    } else if (reserva.emUso) {
-      return { label: "Em Uso", color: "#2196f3" };
-    } else if (reserva.status === 'CANCELADO') {
-      return { label: "Cancelado", color: "#f44336" };
-    } else {
-      return { label: "Pendente", color: "#ff9800" };
-    }
+    const status = determinarStatusReserva(reserva);
+    return { label: status.label, color: status.color };
   };
 
   // Função para forçar a atualização dos dados

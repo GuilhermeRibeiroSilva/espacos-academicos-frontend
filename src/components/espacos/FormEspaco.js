@@ -38,7 +38,7 @@ const FormEspaco = () => {
   const carregarEspaco = async () => {
     showLoading('Carregando dados do espaço...');
     try {
-      const response = await api.get(`/espacos/${id}`);
+      const response = await api.get(`/api/espacos/${id}`);
       setFormData(response.data);
     } catch (error) {
       console.error('Erro ao carregar espaço:', error);
@@ -249,23 +249,41 @@ const FormEspaco = () => {
             }}
           />
           
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ 
-              py: 1.5,
-              bgcolor: '#f8f0ff',
-              color: '#0F1140',
-              '&:hover': {
-                bgcolor: '#e0d0f0',
-              },
-              fontWeight: 'bold',
-              fontSize: '1rem'
-            }}
-          >
-            {isEdicao ? 'Atualizar' : 'Cadastrar'}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 4 }}>
+            <Button
+              onClick={() => navigate('/espacos')}
+              variant="outlined"
+              sx={{ 
+                color: '#f8f0ff',
+                borderColor: '#f8f0ff',
+                '&:hover': { 
+                  borderColor: '#e8e5ef',
+                  color: '#e8e5ef'
+                },
+                py: 1.5,
+                flex: 1
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              sx={{ 
+                py: 1.5,
+                bgcolor: '#f8f0ff',
+                color: '#0F1140',
+                '&:hover': {
+                  bgcolor: '#e0d0f0',
+                },
+                fontWeight: 'bold',
+                fontSize: '1rem',
+                flex: 1
+              }}
+            >
+              {isEdicao ? 'Atualizar' : 'Cadastrar'}
+            </Button>
+          </Box>
         </Box>
       </Paper>
     </Container>

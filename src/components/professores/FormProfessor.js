@@ -33,7 +33,7 @@ const FormProfessor = () => {
   const carregarProfessor = async () => {
     showLoading('Carregando dados do professor...');
     try {
-      const response = await api.get(`/professores/${id}`); // Removido /api/
+      const response = await api.get(`/api/professores/${id}`); // Corrigido para incluir /api/
       setFormData({
         nome: response.data.nome || '',
         escola: response.data.escola || ''
@@ -67,10 +67,10 @@ const FormProfessor = () => {
     
     try {
       if (isEdicao) {
-        await api.put(`/professores/${id}`, formData); // Removido /api/
+        await api.put(`/api/professores/${id}`, formData); // Corrigido
         showFeedback('Professor atualizado com sucesso', 'success');
       } else {
-        await api.post('/professores', formData); // Removido /api/
+        await api.post('/api/professores', formData); // Corrigido
         showFeedback('Professor cadastrado com sucesso', 'success');
       }
       navigate('/professores');
