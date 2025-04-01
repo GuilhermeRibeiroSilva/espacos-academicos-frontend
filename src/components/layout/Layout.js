@@ -1,199 +1,164 @@
 import React, { useState } from 'react';
-import { 
+import {
   AppBar,
   Toolbar,
   Typography,
-  Container,
-  Box,
   Button,
+  Box,
+  IconButton,
   Avatar,
   Menu,
   MenuItem,
-  ListItemIcon,
-  ListItemText,
+  Container,
   Divider
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
-import PersonIcon from '@mui/icons-material/Person';
-import BookIcon from '@mui/icons-material/Book';
-import PeopleIcon from '@mui/icons-material/People';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import logoUcb from '../../img/ucasl-branco.png';
+import { useLoading } from '../../contexts/LoadingContext';
 
 const Layout = ({ children }) => {
-  const { user, logout, isAdmin, isProfessor } = useAuth();
+  const { auth, logout, isAdmin } = useAuth();
+  const { loading } = useLoading();
   const navigate = useNavigate();
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
   const userMenuOpen = Boolean(userMenuAnchorEl);
-
+  
   const handleUserMenu = (event) => {
     setUserMenuAnchorEl(event.currentTarget);
   };
-
+  
   const handleUserMenuClose = () => {
     setUserMenuAnchorEl(null);
   };
-
+  
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
-
-  // Função para obter o nome de exibição do usuário
-  const getUserDisplayName = () => {
-    if (!user) return '';
-    return user.professorNome || user.username.split('@')[0]; // Exibir apenas parte antes do @ para emails
+  
+  const handleNavigate = (path) => {
+    navigate(path);
+    handleUserMenuClose();
   };
-
-  // Função para obter as iniciais do usuário para o avatar de forma mais robusta
+  
+  // Extrair iniciais do nome de usuário para o Avatar
   const getUserInitials = () => {
-    if (!user) return '';
+    if (!auth.user || !auth.user.username) return '?';
     
-    if (user.professorNome) {
-      const nameParts = user.professorNome.split(' ').filter(part => part.length > 0);
-      if (nameParts.length >= 2) {
-        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
-      }
-      return user.professorNome.substring(0, 2).toUpperCase();
+    // Se for professor, usar as iniciais do nome
+    if (auth.user.professorNome) {
+      return auth.user.professorNome
+        .split(' ')
+        .map(n => n.charAt(0))
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
     }
     
-    // Para emails, usar as primeiras duas letras antes do @
-    const username = user.username.split('@')[0];
-    return username.substring(0, 2).toUpperCase();
+    // Caso contrário, usar as iniciais do email
+    return auth.user.username
+      .split('@')[0]
+      .charAt(0)
+      .toUpperCase();
   };
-
+  
+  const getUserDisplayName = () => {
+    if (!auth.user) return '';
+    return auth.user.professorNome || auth.user.username;
+  };
+  
   return (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      
       <AppBar position="static" sx={{ bgcolor: '#0F1140' }}>
         <Toolbar>
-          {/* Logo e Nome */}
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <img 
-              src={logoUcb} 
-              alt="Logo UCB" 
-              style={{ height: '40px', marginRight: '16px' }} 
-            />
-            <Typography 
-              variant="h6" 
-              component={Link} 
-              to="/" 
-              sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
-            >
-              SCEA
-            </Typography>
-          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Sistema de Espaços Acadêmicos
+          </Typography>
           
-          {/* Dashboard Button */}
-          <Button 
-            color="inherit" 
-            component={Link} 
-            to="/"
-            startIcon={<DashboardIcon />}
-            sx={{ mr: 2 }}
-          >
-            Inicio
-          </Button>
-          
-          {/* Menu do Usuário */}
-          <Box>
-            <Button
-              color="inherit"
-              onClick={handleUserMenu}
-              sx={{ textTransform: 'none' }}
-              startIcon={
-                <Avatar 
-                  sx={{ 
-                    width: 32, 
-                    height: 32, 
-                    bgcolor: isAdmin() ? '#ff6b00' : '#1976d2',
-                    fontSize: '0.875rem'
-                  }}
-                >
+          {auth.user && (
+            <>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button color="inherit" onClick={() => navigate('/dashboard')}>
+                  Dashboard
+                </Button>
+                
+                {/* Mostrar opções administrativas apenas para admins */}
+                {auth.isAdmin && (
+                  <>
+                    <Button color="inherit" onClick={() => navigate('/espacos')}>
+                      Espaços
+                    </Button>
+                    <Button color="inherit" onClick={() => navigate('/professores')}>
+                      Professores
+                    </Button>
+                    <Button color="inherit" onClick={() => navigate('/usuarios')}>
+                      Usuários
+                    </Button>
+                  </>
+                )}
+                
+                {/* Mostrar para todos os usuários autenticados */}
+                <Button color="inherit" onClick={() => navigate('/reservas')}>
+                  Reservas
+                </Button>
+              </Box>
+              
+              <IconButton
+                onClick={handleUserMenu}
+                sx={{ ml: 2 }}
+                aria-controls="user-menu"
+                aria-haspopup="true"
+              >
+                <Avatar sx={{ bgcolor: '#F2E085', color: '#0F1140' }}>
                   {getUserInitials()}
                 </Avatar>
-              }
-            >
-              {getUserDisplayName()}
-            </Button>
-            <Menu
-              anchorEl={userMenuAnchorEl}
-              open={userMenuOpen}
-              onClose={handleUserMenuClose}
-              PaperProps={{
-                elevation: 0,
-                sx: {
-                  overflow: 'visible',
-                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                  mt: 1.5,
-                  '& .MuiAvatar-root': {
-                    width: 32,
-                    height: 32,
-                    ml: -0.5,
-                    mr: 1,
-                  },
-                },
-              }}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            >
-              <MenuItem disabled>
-                <Typography variant="body2" color="text.secondary">
-                  {isAdmin() ? 'Administrador' : 'Professor'}
-                </Typography>
-              </MenuItem>
-              <Divider />
+              </IconButton>
               
-              {isAdmin() && (
-                <div>
-                  <MenuItem component={Link} to="/espacos" onClick={handleUserMenuClose}>
-                    <ListItemIcon>
-                      <MeetingRoomIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Espaços</ListItemText>
-                  </MenuItem>
-                  
-                  <MenuItem component={Link} to="/professores" onClick={handleUserMenuClose}>
-                    <ListItemIcon>
-                      <PersonIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Professores</ListItemText>
-                  </MenuItem>
-                  
-                  <MenuItem component={Link} to="/usuarios" onClick={handleUserMenuClose}>
-                    <ListItemIcon>
-                      <PeopleIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Usuários</ListItemText>
-                  </MenuItem>
-                </div>
-              )}
-              
-              <MenuItem component={Link} to="/reservas" onClick={handleUserMenuClose}>
-                <ListItemIcon>
-                  <BookIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Reservas</ListItemText>
-              </MenuItem>
-              
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Sair</ListItemText>
-              </MenuItem>
-            </Menu>
-          </Box>
+              <Menu
+                id="user-menu"
+                anchorEl={userMenuAnchorEl}
+                open={userMenuOpen}
+                onClose={handleUserMenuClose}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+              >
+                <MenuItem disabled>
+                  {getUserDisplayName()} ({auth.isAdmin ? 'Admin' : 'Professor'})
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleNavigate('/perfil')}>
+                  Meu Perfil
+                </MenuItem>
+                <MenuItem onClick={() => handleNavigate('/alterar-senha')}>
+                  Alterar Senha
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout}>Sair</MenuItem>
+              </Menu>
+            </>
+          )}
         </Toolbar>
       </AppBar>
       
-      <Container sx={{ mt: 4, pb: 4 }}>
+      <Container component="main" sx={{ flexGrow: 1, py: 4 }}>
         {children}
       </Container>
-    </>
+      
+      <Box component="footer" sx={{ py: 2, bgcolor: '#f5f5f5', mt: 'auto' }}>
+        <Container>
+          <Typography variant="body2" color="text.secondary" align="center">
+            © {new Date().getFullYear()} Sistema de Espaços Acadêmicos
+          </Typography>
+        </Container>
+      </Box>
+    </Box>
   );
 };
 

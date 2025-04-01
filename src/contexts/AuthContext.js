@@ -1,53 +1,36 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-// Ajuste o caminho conforme a estrutura do seu projeto
-import api from '../services/api'; // ou ajuste para o caminho correto
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import api from '../services/api';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-    const [auth, setAuth] = useState(() => {
-        // Verificar se existe dado no localStorage antes de tentar fazer o parse
-        const storedAuth = localStorage.getItem('auth');
-        return storedAuth ? JSON.parse(storedAuth) : {
-            user: null,
-            isAuthenticated: false,
-            isAdmin: false,
-            isProfessor: false
-        };
+    const [auth, setAuth] = useState({
+        user: null,
+        isAuthenticated: false,
+        isAdmin: false,
+        isProfessor: false
     });
-
+    
     useEffect(() => {
-        // Verificar se existe dado no localStorage antes de tentar fazer o parse
-        const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
+        const userData = localStorage.getItem('user');
         
-        if (storedUser && token) {
+        if (token && userData) {
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            
             try {
-                // Decodificar token para verificar expiração
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(window.atob(base64));
-                
-                // Se token expirado, fazer logout
-                if (payload.exp * 1000 < Date.now()) {
-                    logout();
-                    return;
-                }
-                
-                const user = JSON.parse(storedUser);
-                const isAuthenticated = true;
+                const user = JSON.parse(userData);
                 const isAdmin = user.role === 'ROLE_ADMIN';
                 const isProfessor = user.role === 'ROLE_PROFESSOR';
                 
-                setAuth({ 
-                    user, 
-                    isAuthenticated,
+                setAuth({
+                    user,
+                    isAuthenticated: true,
                     isAdmin,
                     isProfessor
                 });
             } catch (error) {
-                console.error('Erro ao processar dados do usuário:', error);
-                // Se houver erro, limpa os dados corrompidos
+                console.error('Erro ao parsear dados do usuário:', error);
                 localStorage.removeItem('user');
                 localStorage.removeItem('token');
                 localStorage.removeItem('auth');
@@ -57,7 +40,12 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
+            console.log("Tentando login com:", { username });
+            // Remova o /api se já está incluído no baseURL
             const response = await api.post('/auth/login', { username, password });
+            // OU
+            // const response = await api.post('auth/login', { username, password });
+            
             const { token, ...user } = response.data;
             
             const isAdmin = user.role === 'ROLE_ADMIN';
@@ -70,6 +58,7 @@ export const AuthProvider = ({ children }) => {
                 isProfessor
             };
             
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(user));
             localStorage.setItem('auth', JSON.stringify(authData));
@@ -79,24 +68,30 @@ export const AuthProvider = ({ children }) => {
             return true;
         } catch (error) {
             console.error('Erro no login:', error);
-            return false;
+            throw error; // Propague o erro para tratamento no componente
         }
     };
 
     const logout = async () => {
         try {
-            // Tenta fazer logout no servidor, se aplicável
-            // await api.post('/auth/logout');
+            const token = localStorage.getItem('token');
+            if (token) {
+                await api.post('/auth/logout', {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            }
         } catch (error) {
             console.error('Erro ao fazer logout:', error);
         } finally {
-            // Mesmo se falhar no servidor, limpa os dados locais
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('auth');
+            delete api.defaults.headers.common['Authorization'];
             
-            setAuth({ 
-                user: null, 
+            setAuth({
+                user: null,
                 isAuthenticated: false,
                 isAdmin: false,
                 isProfessor: false
@@ -104,14 +99,27 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const isAdmin = () => {
+        return auth.isAdmin;
+    };
+
+    const isProfessor = () => {
+        return auth.isProfessor;
+    };
+
+    const getUser = () => {
+        return auth.user;
+    };
+
     return (
         <AuthContext.Provider value={{ 
-            user: auth.user,
-            isAuthenticated: auth.isAuthenticated,
-            isAdmin: auth.isAdmin,
-            isProfessor: auth.isProfessor,
-            login,
-            logout
+            auth, 
+            login, 
+            logout, 
+            isAdmin, 
+            isProfessor, 
+            getUser,
+            isAuthenticated: auth.isAuthenticated
         }}>
             {children}
         </AuthContext.Provider>

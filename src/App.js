@@ -1,11 +1,14 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
 // Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { LoadingProvider } from './contexts/LoadingContext';
+
+// Tema personalizado
+import theme from './theme';
 
 // Componentes de Autenticação
 import Login from './components/auth/Login';
@@ -24,9 +27,7 @@ import ReservasProfessor from './components/professores/ReservasProfessor';
 import ListaReservas from './components/reservas/ListaReservas';
 import FormReserva from './components/reservas/FormReserva';
 import GerenciarUsuarios from './components/usuarios/GerenciarUsuarios';
-
-// Tema personalizado
-import theme from './theme';
+import NotFound from './components/common/NotFound';
 
 function App() {
   return (
@@ -34,127 +35,109 @@ function App() {
       <CssBaseline />
       <LoadingProvider>
         <AuthProvider>
-          <Router>
+          <BrowserRouter>
             <Routes>
-              {/* Rota de Login */}
+              <Route path="/" element={<Navigate replace to="/login" />} />
               <Route path="/login" element={<Login />} />
-
-              {/* Rota do Dashboard */}
-              <Route path="/" element={
-                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } />
+              
+              {/* Rota de Dashboard - acessível para todos os usuários autenticados */}
               <Route path="/dashboard" element={
-                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
+                <ProtectedRoute>
                   <Layout>
                     <Dashboard />
                   </Layout>
                 </ProtectedRoute>
               } />
-
-              {/* Rotas de Espaços */}
+              
+              {/* Rotas para espaços - administrativas */}
               <Route path="/espacos" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <ListaEspacos />
                   </Layout>
                 </ProtectedRoute>
               } />
               <Route path="/espacos/novo" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <FormEspaco />
                   </Layout>
                 </ProtectedRoute>
               } />
-              <Route path="/espacos/editar/:id" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+              <Route path="/espacos/:id" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <FormEspaco />
                   </Layout>
                 </ProtectedRoute>
               } />
-
-              {/* Rotas de Professores */}
+              
+              {/* Rotas para professores - administrativas */}
               <Route path="/professores" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <ListaProfessores />
                   </Layout>
                 </ProtectedRoute>
               } />
               <Route path="/professores/novo" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <FormProfessor />
                   </Layout>
                 </ProtectedRoute>
               } />
-              <Route path="/professores/editar/:id" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+              <Route path="/professores/:id" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <FormProfessor />
                   </Layout>
                 </ProtectedRoute>
               } />
               <Route path="/professores/:id/reservas" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <ReservasProfessor />
                   </Layout>
                 </ProtectedRoute>
               } />
-
-              {/* Rotas de Usuários */}
+              
+              {/* Rota para reservas - acessível para admin e professores */}
+              <Route path="/reservas" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_PROFESSOR']}>
+                  <Layout>
+                    <ListaReservas />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/reservas/nova" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_PROFESSOR']}>
+                  <Layout>
+                    <FormReserva />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/reservas/:id" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_PROFESSOR']}>
+                  <Layout>
+                    <FormReserva />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Rota para gerenciamento de usuários (admin only) */}
               <Route path="/usuarios" element={
-                <ProtectedRoute roles={["ROLE_ADMIN"]}>
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>
                     <GerenciarUsuarios />
                   </Layout>
                 </ProtectedRoute>
               } />
-
-              {/* Rotas de Reservas - CORRIGIDO */}
-              <Route path="/reservas" element={
-                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
-                  <Layout>
-                    <ListaReservas userType="admin" />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/reservas/nova" element={
-                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
-                  <Layout>
-                    <FormReserva />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/reservas/editar/:id" element={
-                <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_PROFESSOR"]}>
-                  <Layout>
-                    <FormReserva />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/professor/reservas" element={
-                <ProtectedRoute roles={["ROLE_PROFESSOR"]}>
-                  <Layout>
-                    <ListaReservas userType="professor" />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-
-              {/* Rota curinga para páginas não encontradas */}
-              <Route path="*" element={
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              } />
+              
+              {/* Rotas de erro */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
-          </Router>
+          </BrowserRouter>
         </AuthProvider>
       </LoadingProvider>
     </ThemeProvider>

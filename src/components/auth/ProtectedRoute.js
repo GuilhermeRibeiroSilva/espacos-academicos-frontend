@@ -1,34 +1,30 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/unauthorized" }) => {
-    const { isAuthenticated, user, isProfessor, isAdmin } = useAuth();
-    const location = useLocation();
-
-    // Verificar autenticação
-    if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+    const { auth } = useAuth();
+    
+    // Se não estiver autenticado, redirecionar para login
+    if (!auth.isAuthenticated) {
+        return <Navigate to="/login" replace />;
     }
-
-    // Verificar permissões para roles específicos
-    if (allowedRoles) {
-        // Se é necessário ser admin e não é
-        if (allowedRoles.includes('ROLE_ADMIN') && !isAdmin) {
-            return <Navigate to={redirectTo} replace />;
-        }
-        
-        // Se é necessário ser professor e não é
-        if (allowedRoles.includes('ROLE_PROFESSOR') && !isProfessor) {
-            return <Navigate to={redirectTo} replace />;
-        }
-        
-        // Verificação genérica por role
-        if (!user?.role || !allowedRoles.includes(user.role)) {
-            return <Navigate to={redirectTo} replace />;
-        }
+    
+    // Se não houver restrição de papéis, apenas verificar autenticação
+    if (allowedRoles.length === 0) {
+        return children;
     }
-
+    
+    // Verificar se o usuário tem pelo menos um dos papéis permitidos
+    const hasAllowedRole = 
+        (allowedRoles.includes('ROLE_ADMIN') && auth.isAdmin) ||
+        (allowedRoles.includes('ROLE_PROFESSOR') && auth.isProfessor);
+    
+    if (!hasAllowedRole) {
+        // Redirecionar para dashboard com acesso limitado
+        return <Navigate to="/dashboard" replace />;
+    }
+    
     return children;
 };
 
