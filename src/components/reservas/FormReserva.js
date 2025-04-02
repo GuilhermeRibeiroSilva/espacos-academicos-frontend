@@ -1,445 +1,479 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-    TextField,
-    Button,
-    Box,
-    Typography,
-    MenuItem,
-    FormControl,
-    Select,
-    styled,
-    Alert,
+  Box, Typography, TextField, Button, FormControl, InputLabel,
+  Select, MenuItem, styled, Grid, Alert, Snackbar, CircularProgress
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ptBR from 'date-fns/locale/pt-BR';
 import api from '../../services/api';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useFeedback } from '../common/Feedback';
-import { format, isBefore, startOfDay } from 'date-fns';
 
 // Componentes estilizados
 const FormContainer = styled(Box)(({ theme }) => ({
-    backgroundColor: '#0F1140',
-    borderRadius: '10px',
-    padding: '40px',
-    width: '100%',
-    maxWidth: '600px',
-    margin: '0 auto',
-    boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
+  backgroundColor: '#0F1140',
+  borderRadius: '10px',
+  padding: '40px',
+  width: '100%',
+  maxWidth: '600px',
+  margin: '0 auto',
+  boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
 }));
 
 const PageTitle = styled(Typography)({
-    color: '#0F1140',
-    marginBottom: '24px',
-    textAlign: 'center',
-    fontSize: '28px',
-    fontWeight: 'bold',
+  color: '#0F1140',
+  marginBottom: '24px',
+  textAlign: 'center',
+  fontSize: '28px',
+  fontWeight: 'bold',
 });
 
 const FormLabel = styled(Typography)({
-    color: 'white',
-    marginBottom: '8px',
-    fontSize: '16px',
+  color: 'white',
+  marginBottom: '8px',
+  fontSize: '16px',
 });
 
 const StyledSelect = styled(Select)({
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    '& .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
-    },
-    '&:hover .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
-    },
-    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-        border: 'none',
-    },
-    marginBottom: '20px',
+  backgroundColor: '#F2EEFF',
+  borderRadius: '8px',
+  '& .MuiOutlinedInput-notchedOutline': {
+    border: 'none',
+  },
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    border: 'none',
+  },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    border: 'none',
+  },
+  marginBottom: '20px',
 });
 
 const StyledTextField = styled(TextField)({
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    '& .MuiOutlinedInput-root': {
-        '& fieldset': {
-            border: 'none',
-        },
-        '&:hover fieldset': {
-            border: 'none',
-        },
-        '&.Mui-focused fieldset': {
-            border: 'none',
-        },
+  backgroundColor: '#F2EEFF',
+  borderRadius: '8px',
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      border: 'none',
     },
-    marginBottom: '20px',
-    '& input': {
-        padding: '15px',
-    }
+    '&:hover fieldset': {
+      border: 'none',
+    },
+    '&.Mui-focused fieldset': {
+      border: 'none',
+    },
+  },
+  marginBottom: '20px',
+  '& input': {
+    padding: '15px',
+  },
 });
 
 const StyledDatePicker = styled(DatePicker)(({ theme }) => ({
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    width: '100%',
-    '& .MuiOutlinedInput-root': {
-        '& fieldset': {
-            border: 'none',
-        },
-        '&:hover fieldset': {
-            border: 'none',
-        },
-        '&.Mui-focused fieldset': {
-            border: 'none',
-        },
+  backgroundColor: '#F2EEFF',
+  borderRadius: '8px',
+  marginBottom: '20px',
+  width: '100%',
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      border: 'none',
     },
-    '& input': {
-        padding: '15px',
-    }
+    '&:hover fieldset': {
+      border: 'none',
+    },
+    '&.Mui-focused fieldset': {
+      border: 'none',
+    },
+  },
+  '& input': {
+    padding: '15px',
+  },
 }));
 
 const ButtonContainer = styled(Box)({
-    display: 'flex',
-    gap: '16px',
-    justifyContent: 'center',
-    marginTop: '30px',
-    width: '100%',
+  display: 'flex',
+  gap: '16px',
+  justifyContent: 'center',
+  marginTop: '30px',
+  width: '100%',
 });
 
 const ActionButton = styled(Button)(({ variant }) => ({
-    flex: 1,
-    padding: '12px 24px',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    backgroundColor: variant === 'contained' ? '#F2EEFF' : 'transparent',
-    color: variant === 'contained' ? '#0F1140' : '#F2EEFF',
-    border: variant === 'contained' ? 'none' : '1px solid #F2EEFF',
-    '&:hover': {
-        backgroundColor: variant === 'contained' ? '#E5E0FF' : 'rgba(242, 238, 255, 0.1)',
-    },
+  flex: 1,
+  padding: '12px 24px',
+  borderRadius: '8px',
+  fontWeight: 'bold',
+  backgroundColor: variant === 'contained' ? '#F2EEFF' : 'transparent',
+  color: variant === 'contained' ? '#0F1140' : '#F2EEFF',
+  border: variant === 'contained' ? 'none' : '1px solid #F2EEFF',
+  '&:hover': {
+    backgroundColor: variant === 'contained' ? '#E5E0FF' : 'rgba(242, 238, 255, 0.1)',
+  },
 }));
 
+// Componente local de loading para substituir o contexto
+const LoadingIndicator = ({ message = 'Carregando...' }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: 3,
+    }}
+  >
+    <CircularProgress size={40} />
+    <Typography sx={{ mt: 2 }}>{message}</Typography>
+  </Box>
+);
+
 const FormReserva = () => {
-    const navigate = useNavigate();
-    const { id } = useParams();
-    const { showFeedback, FeedbackComponent } = useFeedback();
-    const [espacos, setEspacos] = useState([]);
-    const [professores, setProfessores] = useState([]);
-    const [formData, setFormData] = useState({
-        espacoAcademico: '',
-        professor: '',
-        data: null,
-        horaInicial: '',
-        horaFinal: ''
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEdicao = !!id;
+
+  // Usar refs para evitar efeitos colaterais
+  const dataFetchedRef = useRef(false);
+
+  // Estados locais em vez de contextos
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [feedback, setFeedback] = useState({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
+
+  // Dados do formulário
+  const [formData, setFormData] = useState({
+    espacoAcademico: '',
+    professor: '',
+    data: null,
+    horaInicial: '',
+    horaFinal: '',
+  });
+
+  const [espacos, setEspacos] = useState([]);
+  const [professores, setProfessores] = useState([]);
+  const [error, setError] = useState(null);
+
+  // Função local de feedback
+  const showFeedback = (message, severity = 'info') => {
+    setFeedback({
+      open: true,
+      message,
+      severity,
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  };
 
-    // Função para depuração
-    const logError = (error, message) => {
-        console.error(message, error);
-        console.log('Detalhes do erro:');
-        console.log('Status:', error.response?.status);
-        console.log('Mensagem:', error.response?.data?.message || error.message);
-        console.log('Dados:', error.response?.data);
+  const handleCloseFeedback = () => {
+    setFeedback({
+      ...feedback,
+      open: false,
+    });
+  };
 
-        setError(`${message}: ${error.response?.data?.message || error.message}`);
-    };
+  // Carregar dados iniciais - COM PROTEÇÃO CONTRA LOOP INFINITO
+  useEffect(() => {
+    // Esta verificação garante que o efeito só execute uma vez
+    if (dataFetchedRef.current) return;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                await Promise.all([carregarEspacos(), carregarProfessores()]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      setLoadingMessage('Carregando dados...');
 
-                if (id) {
-                    await carregarReserva(id);
-                }
-            } catch (error) {
-                logError(error, "Erro ao carregar dados iniciais");
-            } finally {
-                setLoading(false);
-            }
-        };
+      try {
+        console.log('Iniciando carregamento de dados...');
 
-        fetchData();
-    }, [id]);
+        // Carregar espaços e professores
+        const [espacosRes, professoresRes] = await Promise.all([
+          api.get('/espacos'),
+          api.get('/professores'),
+        ]);
 
-    const carregarEspacos = async () => {
-        try {
-            const response = await api.get('/espacos');
-            setEspacos(response.data.filter(espaco => espaco.disponivel));
-            return response;
-        } catch (error) {
-            logError(error, 'Erro ao carregar espaços');
-            throw error;
-        }
-    };
+        setEspacos(espacosRes.data);
+        setProfessores(professoresRes.data);
 
-    const carregarProfessores = async () => {
-        try {
-            const response = await api.get('/professores');
-            setProfessores(response.data);
-            return response;
-        } catch (error) {
-            logError(error, 'Erro ao carregar professores');
-            throw error;
-        }
-    };
+        // Se for edição, carregar dados da reserva
+        if (id) {
+          const reservaRes = await api.get(`/reservas/${id}`);
+          const reserva = reservaRes.data;
 
-    const carregarReserva = async (reservaId) => {
-        try {
-            const response = await api.get(`/reservas/${reservaId}`);
-            const reserva = response.data;
-
-            // Converter strings para objetos Date
-            const dataReserva = new Date(reserva.data);
-
-            setFormData({
-                espacoAcademico: reserva.espacoAcademico.id,
-                professor: reserva.professor.id,
-                data: dataReserva,
-                horaInicial: reserva.horaInicial,
-                horaFinal: reserva.horaFinal
-            });
-
-            return response;
-        } catch (error) {
-            logError(error, 'Erro ao carregar reserva');
-            throw error;
-        }
-    };
-
-    const validarHorario = (horaInicial, horaFinal) => {
-        if (!horaInicial || !horaFinal) return true;
-
-        const [horaIni, minIni] = horaInicial.split(':').map(Number);
-        const [horaFim, minFim] = horaFinal.split(':').map(Number);
-
-        // Validar horário de funcionamento (06:00 - 23:00)
-        if (horaIni < 6 || horaIni > 23 || horaFim < 6 || horaFim > 23) {
-            showFeedback('Horário deve estar entre 06:00 e 23:00', 'error');
-            return false;
+          setFormData({
+            espacoAcademico: reserva.espacoAcademico.id,
+            professor: reserva.professor.id,
+            data: new Date(reserva.data),
+            horaInicial: reserva.horaInicial,
+            horaFinal: reserva.horaFinal,
+          });
         }
 
-        // Calcular duração em minutos
-        const duracaoMinutos = (horaFim * 60 + minFim) - (horaIni * 60 + minIni);
+        console.log('Dados carregados com sucesso');
+      } catch (error) {
+        console.error('Erro ao carregar dados iniciais:', error);
+        setError('Erro ao carregar dados necessários');
 
-        // Validar duração máxima (1h15)
-        if (duracaoMinutos > 75 || duracaoMinutos <= 0) {
-            showFeedback('A reserva deve ter no máximo 1 hora e 15 minutos', 'error');
-            return false;
-        }
-
-        return true;
+        // Mostrar feedback e redirecionar
+        showFeedback('Erro ao carregar dados necessários', 'error');
+        // Evitar redirecionamento imediato para permitir que o usuário veja o erro
+        setTimeout(() => navigate('/reservas'), 2000);
+      } finally {
+        setIsLoading(false);
+        // Marcar que os dados já foram carregados
+        dataFetchedRef.current = true;
+      }
     };
 
-    // Função para formatar data antes de enviar
-    const formatarDataParaAPI = (data) => {
-        if (!data) return '';
-        
-        // Garantir que estamos usando UTC para evitar problemas com timezone
-        const dataObj = new Date(data);
-        return `${dataObj.getFullYear()}-${String(dataObj.getMonth() + 1).padStart(2, '0')}-${String(dataObj.getDate()).padStart(2, '0')}`;
-    };
+    fetchData();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // Sem dependências para evitar re-execução
+  }, []);
 
-        if (!formData.data) {
-            showFeedback('É necessário selecionar uma data', 'error');
-            return;
-        }
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
 
-        if (!validarHorario(formData.horaInicial, formData.horaFinal)) {
-            return;
-        }
+  // Handle date change
+  const handleDateChange = (date) => {
+    setFormData({
+      ...formData,
+      data: date,
+    });
+  };
 
-        try {
-            const dadosReserva = {
-                ...formData,
-                data: formatarDataParaAPI(formData.data),
-                espacoAcademico: { id: formData.espacoAcademico },
-                professor: { id: formData.professor }
-            };
+  // Validar horário
+  const validarHorario = (horaInicial, horaFinal) => {
+    if (!horaInicial || !horaFinal) {
+      showFeedback('É necessário informar os horários de início e fim', 'error');
+      return false;
+    }
 
-            if (id) {
-                await api.put(`/reservas/${id}`, dadosReserva);
-                showFeedback('Reserva atualizada com sucesso', 'success');
-            } else {
-                await api.post('/reservas', dadosReserva);
-                showFeedback('Reserva criada com sucesso', 'success');
-            }
-            navigate('/reservas');
-        } catch (error) {
-            console.error('Erro ao salvar reserva:', error);
-            showFeedback(
-                error.response?.data?.message || 'Erro ao salvar reserva',
-                'error'
-            );
-        }
-    };
+    const [horaIni, minIni] = horaInicial.split(':').map(Number);
+    const [horaFim, minFim] = horaFinal.split(':').map(Number);
 
-    const handleCancel = () => {
-        navigate('/reservas');
-    };
+    const inicioEmMinutos = horaIni * 60 + minIni;
+    const fimEmMinutos = horaFim * 60 + minFim;
 
-    // Função para desabilitar datas passadas
-    const desabilitarDataPassada = (date) => {
-        return isBefore(date, startOfDay(new Date()));
-    };
+    if (inicioEmMinutos >= fimEmMinutos) {
+      showFeedback('O horário final deve ser maior que o horário inicial', 'error');
+      return false;
+    }
 
-    // Função para validar entrada de hora
-    const validarEntradaHora = (e, field) => {
-        const value = e.target.value;
-        
-        if (value) {
-            const [hora] = value.split(':').map(Number);
-            
-            if (hora < 6 || hora > 23) {
-                showFeedback('Horário deve estar entre 06:00 e 23:00', 'warning');
-            }
-        }
-        
-        setFormData({ ...formData, [field]: value });
-    };
+    return true;
+  };
 
-    return (
-        <Box sx={{ padding: 3 }}>
-            <PageTitle>
-                {id ? 'Editar Reserva' : 'Cadastrar Reserva'}
-            </PageTitle>
+  // Format date for API
+  const formatarDataParaAPI = (data) => {
+    if (!data) return null;
 
-            {error && (
-                <Alert
-                    severity="error"
-                    sx={{
-                        mb: 2,
-                        maxWidth: '600px',
-                        margin: '0 auto 20px'
-                    }}
-                >
-                    {error}
-                </Alert>
-            )}
+    const year = data.getFullYear();
+    const month = String(data.getMonth() + 1).padStart(2, '0');
+    const day = String(data.getDate()).padStart(2, '0');
 
-            <FormContainer>
-                <form onSubmit={handleSubmit}>
-                    <FormLabel>Espaço Acadêmico</FormLabel>
-                    <FormControl fullWidth>
-                        <StyledSelect
-                            value={formData.espacoAcademico}
-                            onChange={(e) => setFormData({ ...formData, espacoAcademico: e.target.value })}
-                            required
-                            disabled={loading}
-                            displayEmpty
-                            renderValue={(value) => {
-                                if (!value) return "Espaço Acadêmico";
-                                const espaco = espacos.find(e => e.id === value);
-                                return espaco ? espaco.nome : "";
-                            }}
-                        >
-                            {espacos.map(espaco => (
-                                <MenuItem key={espaco.id} value={espaco.id}>
-                                    {espaco.nome}
-                                </MenuItem>
-                            ))}
-                        </StyledSelect>
-                    </FormControl>
+    return `${year}-${month}-${day}`;
+  };
 
-                    <FormLabel>Professor</FormLabel>
-                    <FormControl fullWidth>
-                        <StyledSelect
-                            value={formData.professor}
-                            onChange={(e) => setFormData({ ...formData, professor: e.target.value })}
-                            required
-                            disabled={loading}
-                            displayEmpty
-                            renderValue={(value) => {
-                                if (!value) return "Professor";
-                                const professor = professores.find(p => p.id === value);
-                                return professor ? professor.nome : "";
-                            }}
-                        >
-                            {professores.map(professor => (
-                                <MenuItem key={professor.id} value={professor.id}>
-                                    {professor.nome}
-                                </MenuItem>
-                            ))}
-                        </StyledSelect>
-                    </FormControl>
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-                    <FormLabel>Data</FormLabel>
-                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
-                        <StyledDatePicker
-                            value={formData.data}
-                            onChange={(newDate) => setFormData({ ...formData, data: newDate })}
-                            format="dd/MM/yyyy"
-                            disablePast
-                            shouldDisableDate={desabilitarDataPassada}
-                            slotProps={{
-                                textField: {
-                                    required: true,
-                                    placeholder: "DD/MM/AAAA",
-                                    disabled: loading,
-                                    fullWidth: true
-                                }
-                            }}
-                        />
-                    </LocalizationProvider>
+    if (!formData.data) {
+      showFeedback('É necessário selecionar uma data', 'error');
+      return;
+    }
 
-                    <FormLabel>Horário Inicial</FormLabel>
-                    <StyledTextField
-                        type="time"
-                        value={formData.horaInicial}
-                        onChange={(e) => validarEntradaHora(e, 'horaInicial')}
-                        required
-                        fullWidth
-                        inputProps={{
-                            min: "06:00",
-                            max: "23:00",
-                            step: "300" // 5 minutos
-                        }}
-                    />
+    if (!validarHorario(formData.horaInicial, formData.horaFinal)) {
+      return;
+    }
 
-                    <FormLabel>Horário Final</FormLabel>
-                    <StyledTextField
-                        type="time"
-                        value={formData.horaFinal}
-                        onChange={(e) => validarEntradaHora(e, 'horaFinal')}
-                        required
-                        fullWidth
-                        inputProps={{
-                            min: "06:00",
-                            max: "23:00",
-                            step: "300" // 5 minutos
-                        }}
-                    />
+    try {
+      setIsLoading(true);
+      setLoadingMessage(isEdicao ? 'Atualizando reserva...' : 'Criando reserva...');
 
-                    <ButtonContainer>
-                        <ActionButton
-                            type="button"
-                            onClick={handleCancel}
-                            disabled={loading}
-                            variant="outlined"
-                        >
-                            Cancelar
-                        </ActionButton>
-                        <ActionButton
-                            type="submit"
-                            disabled={loading}
-                            variant="contained"
-                        >
-                            {loading ? 'Salvando...' : (id ? 'Atualizar' : 'Cadastrar')}
-                        </ActionButton>
-                    </ButtonContainer>
-                </form>
-            </FormContainer>
-            <FeedbackComponent />
-        </Box>
-    );
+      const dadosReserva = {
+        ...formData,
+        data: formatarDataParaAPI(formData.data),
+        espacoAcademico: { id: formData.espacoAcademico },
+        professor: { id: formData.professor },
+      };
+
+      if (isEdicao) {
+        await api.put(`/reservas/${id}`, dadosReserva);
+        showFeedback('Reserva atualizada com sucesso', 'success');
+      } else {
+        await api.post('/reservas', dadosReserva);
+        showFeedback('Reserva criada com sucesso', 'success');
+      }
+
+      // Breve delay para garantir que a mensagem de sucesso seja vista
+      setTimeout(() => navigate('/reservas'), 1000);
+    } catch (error) {
+      console.error('Erro ao salvar reserva:', error);
+
+      // Tratamento específico para erro de conflito
+      if (error.response?.status === 409) {
+        showFeedback('Já existe uma reserva para este espaço neste horário', 'error');
+      } else {
+        showFeedback(
+          error.response?.data?.message || 'Erro ao salvar reserva',
+          'error'
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    navigate('/reservas');
+  };
+
+  if (isLoading) {
+    return <LoadingIndicator message={loadingMessage} />;
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" sx={{ mb: 3 }}>
+        {isEdicao ? 'Editar Reserva' : 'Nova Reserva'}
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel id="espaco-label">Espaço Acadêmico</InputLabel>
+              <Select
+                labelId="espaco-label"
+                name="espacoAcademico"
+                value={formData.espacoAcademico}
+                onChange={handleChange}
+                required
+              >
+                {espacos.map((espaco) => (
+                  <MenuItem key={espaco.id} value={espaco.id}>
+                    {espaco.nome}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel id="professor-label">Professor</InputLabel>
+              <Select
+                labelId="professor-label"
+                name="professor"
+                value={formData.professor}
+                onChange={handleChange}
+                required
+              >
+                {professores.map((professor) => (
+                  <MenuItem key={professor.id} value={professor.id}>
+                    {professor.nome}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+              <DatePicker
+                label="Data"
+                value={formData.data}
+                onChange={handleDateChange}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+                disablePast
+              />
+            </LocalizationProvider>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <TextField
+              label="Hora Inicial"
+              name="horaInicial"
+              type="time"
+              value={formData.horaInicial}
+              onChange={handleChange}
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                step: 300, // 5min
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <TextField
+              label="Hora Final"
+              name="horaFinal"
+              type="time"
+              value={formData.horaFinal}
+              onChange={handleChange}
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                step: 300, // 5min
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sx={{ mt: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+              <Button
+                variant="outlined"
+                onClick={handleCancel}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="contained"
+                type="submit"
+                color="primary"
+              >
+                {isEdicao ? 'Atualizar' : 'Salvar'}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </form>
+
+      {/* Feedback local */}
+      <Snackbar
+        open={feedback.open}
+        autoHideDuration={6000}
+        onClose={handleCloseFeedback}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseFeedback}
+          severity={feedback.severity}
+          sx={{ width: '100%' }}
+        >
+          {feedback.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 };
 
 export default FormReserva;

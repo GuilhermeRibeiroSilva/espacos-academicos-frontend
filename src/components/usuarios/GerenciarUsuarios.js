@@ -209,8 +209,17 @@ const GerenciarUsuarios = () => {
     }
 
     showLoading('Criando usuário...');
+    
     try {
-      await api.post('/admin/usuarios/professor', formData);
+      const dadosFormatados = {
+        username: formData.username,
+        password: formData.password,
+        professorId: parseInt(formData.professorId, 10)
+      };
+      
+      // URL corrigida para corresponder ao endpoint do backend
+      await api.post('/admin/usuarios/professor', dadosFormatados);
+      
       showFeedback('Usuário criado com sucesso', 'success');
       handleCloseDialog();
       carregarDados();
@@ -233,13 +242,17 @@ const GerenciarUsuarios = () => {
 
     showLoading('Resetando senha...');
     try {
-      await api.post(`/admin/usuarios/${selectedUsuario.id}/resetar-senha`, {
-        novaSenha,
+      // Corrigir URL para match com backend - remover prefixo /api duplicado
+      await api.put(`/admin/usuarios/${selectedUsuario.id}/resetar-senha`, {
+        novaSenha
       });
+      
       showFeedback('Senha resetada com sucesso', 'success');
       handleCloseResetSenhaDialog();
     } catch (error) {
       console.error('Erro ao resetar senha:', error);
+      console.error('Detalhes da resposta:', error.response?.data);
+      
       showFeedback(
         error.response?.data?.message || 'Erro ao resetar senha',
         'error'

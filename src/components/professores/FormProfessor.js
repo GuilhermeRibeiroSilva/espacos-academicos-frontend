@@ -35,7 +35,7 @@ const FormProfessor = () => {
   const carregarProfessor = async () => {
     showLoading('Carregando dados do professor...');
     try {
-      const response = await api.get(`/api/professores/${id}`);
+      const response = await api.get(`/professores/${id}`);
       setFormData({
         nome: response.data.nome || '',
         escola: response.data.escola || ''

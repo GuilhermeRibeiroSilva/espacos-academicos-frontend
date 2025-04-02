@@ -94,6 +94,13 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/professores/editar/:id" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
+                  <Layout>
+                    <FormProfessor />
+                  </Layout>
+                </ProtectedRoute>
+              } />
               <Route path="/professores/:id/reservas" element={
                 <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <Layout>

@@ -38,7 +38,8 @@ const FormEspaco = () => {
   const carregarEspaco = async () => {
     showLoading('Carregando dados do espaço...');
     try {
-      const response = await api.get(`/api/espacos/${id}`);
+      // Corrigido para remover o prefixo /api que está duplicando o caminho
+      const response = await api.get(`/espacos/${id}`);
       setFormData(response.data);
     } catch (error) {
       console.error('Erro ao carregar espaço:', error);
@@ -106,10 +107,9 @@ const FormEspaco = () => {
       navigate('/espacos');
     } catch (error) {
       console.error('Erro ao salvar espaço:', error);
-      showFeedback(
-        error.response?.data?.message || `Erro ao ${isEdicao ? 'atualizar' : 'cadastrar'} espaço acadêmico`,
-        'error'
-      );
+      const mensagemErro = error.response?.data?.message || 
+                        `Erro ao ${isEdicao ? 'atualizar' : 'cadastrar'} espaço acadêmico`;
+      showFeedback(mensagemErro, 'error');
     } finally {
       hideLoading();
     }

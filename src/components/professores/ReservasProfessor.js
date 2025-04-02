@@ -28,15 +28,15 @@ const ReservasProfessor = () => {
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
 
-  // Verificar e padronizar caminho da API
+  // Corrigir o método carregarDados
   const carregarDados = async () => {
     showLoading('Carregando dados...');
     try {
-      // Verificar se '/api' é necessário aqui
-      const professorResponse = await api.get(`/api/professores/${id}`);
+      // Remover o prefixo '/api' das chamadas
+      const professorResponse = await api.get(`/professores/${id}`);
       setProfessor(professorResponse.data);
       
-      const reservasResponse = await api.get(`/api/professores/${id}/reservas`);
+      const reservasResponse = await api.get(`/professores/${id}/reservas`);
       setReservas(reservasResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);

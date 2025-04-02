@@ -1,45 +1,81 @@
-import React, { createContext, useState, useContext } from 'react';
-import { Backdrop, CircularProgress, Typography, Box } from '@mui/material';
+import React, { createContext, useState, useContext, useCallback } from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-const LoadingContext = createContext(null);
+// Definindo o componente LoadingOverlay
+const LoadingOverlay = ({ message = 'Carregando...' }) => {
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(15, 17, 64, 0.7)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999,
+      }}
+    >
+      <CircularProgress 
+        size={60} 
+        thickness={4} 
+        sx={{ color: '#F2EEFF' }} 
+      />
+      <Typography
+        variant="h6"
+        sx={{
+          color: '#F2EEFF',
+          marginTop: 2,
+          fontWeight: 'medium',
+        }}
+      >
+        {message}
+      </Typography>
+    </Box>
+  );
+};
 
-// Adicionar um contador para múltiplas chamadas de loading
+// Criar contexto com valor inicial consistente
+const LoadingContext = createContext({
+  isLoading: false,
+  showLoading: () => {},
+  hideLoading: () => {}
+});
+
 export const LoadingProvider = ({ children }) => {
-  const [loadingCount, setLoadingCount] = useState(0);
-  const [message, setMessage] = useState('Carregando...');
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const showLoading = (msg = 'Carregando...') => {
+  // Funções de callback para evitar re-renderizações
+  const showLoading = useCallback((msg = 'Carregando...') => {
     setMessage(msg);
-    setLoadingCount(prev => prev + 1);
-  };
+    setIsLoading(true);
+  }, []);
 
-  const hideLoading = () => {
-    setLoadingCount(prev => Math.max(0, prev - 1));
-  };
+  const hideLoading = useCallback(() => {
+    setIsLoading(false);
+    setMessage('');
+  }, []);
 
-  // Só mostra o loading se o contador for > 0
-  const isLoading = loadingCount > 0;
+  // Valor do contexto
+  const contextValue = {
+    isLoading,
+    showLoading,
+    hideLoading
+  };
 
   return (
-    <LoadingContext.Provider value={{ showLoading, hideLoading }}>
+    <LoadingContext.Provider value={contextValue}>
       {children}
-      <Backdrop
-        sx={{
-          color: '#fff',
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          flexDirection: 'column',
-        }}
-        open={isLoading}
-      >
-        <CircularProgress color="inherit" />
-        <Box mt={2}>
-          <Typography variant="h6">{message}</Typography>
-        </Box>
-      </Backdrop>
+      {isLoading && <LoadingOverlay message={message} />}
     </LoadingContext.Provider>
   );
 };
 
+// Hook personalizado
 export const useLoading = () => {
   const context = useContext(LoadingContext);
   if (!context) {

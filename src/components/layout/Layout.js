@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -31,7 +31,7 @@ import LogoFaculdade from '../../img/ucasl-branco.png'; // Certifique-se de ter 
 
 const Layout = ({ children }) => {
   const { auth, logout, isAdmin } = useAuth();
-  const { loading } = useLoading();
+  const { loading, showLoading, hideLoading } = useLoading();
   const navigate = useNavigate();
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
   const userMenuOpen = Boolean(userMenuAnchorEl);
@@ -51,8 +51,19 @@ const Layout = ({ children }) => {
   };
   
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      const result = await logout();
+      if (result) {
+        navigate('/login');
+      } else {
+        // Se o logout da API falhou mas limpamos localmente
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Erro ao processar logout:', error);
+      // Mesmo com erro, redirecionar para login
+      navigate('/login');
+    }
   };
   
   const handleNavigate = (path) => {
@@ -116,6 +127,14 @@ const Layout = ({ children }) => {
     return auth.isAdmin ? 'Administrador' : auth.user.username.split('@')[0];
   };
   
+  useEffect(() => {
+    if (loading) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [loading, showLoading, hideLoading]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static" sx={{ bgcolor: '#0F1140' }}>

@@ -74,21 +74,42 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                await api.post('/auth/logout', {}, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+            // Primeiro, limpar dados locais (sempre deve acontecer)
+            const cleanLocalState = () => {
+                api.defaults.headers.common['Authorization'] = '';
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('auth');
+                
+                setAuth({
+                    user: null,
+                    isAuthenticated: false,
+                    isAdmin: false,
+                    isProfessor: false
                 });
+            };
+            
+            // Tentar fazer logout no servidor
+            if (auth?.token) {
+                try {
+                    await api.post('/auth/logout');
+                } catch (error) {
+                    console.error('Falha ao comunicar logout ao servidor:', error);
+                    // Continuar mesmo com erro no servidor
+                }
             }
+            
+            // Sempre limpar estado local
+            cleanLocalState();
+            return true;
         } catch (error) {
-            console.error('Erro ao fazer logout:', error);
-        } finally {
+            console.error('Erro no processo de logout:', error);
+            
+            // Mesmo com erro, limpar dados locais
+            api.defaults.headers.common['Authorization'] = '';
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('auth');
-            delete api.defaults.headers.common['Authorization'];
             
             setAuth({
                 user: null,
@@ -96,19 +117,21 @@ export const AuthProvider = ({ children }) => {
                 isAdmin: false,
                 isProfessor: false
             });
+            
+            return false;
         }
     };
 
     const isAdmin = () => {
-        return auth.isAdmin;
+        return auth?.isAdmin || false;
     };
 
     const isProfessor = () => {
-        return auth.isProfessor;
+        return auth?.isProfessor || false;
     };
 
     const getUser = () => {
-        return auth.user;
+        return auth?.user || null;
     };
 
     return (
@@ -119,7 +142,7 @@ export const AuthProvider = ({ children }) => {
             isAdmin, 
             isProfessor, 
             getUser,
-            isAuthenticated: auth.isAuthenticated
+            isAuthenticated: auth?.isAuthenticated || false
         }}>
             {children}
         </AuthContext.Provider>

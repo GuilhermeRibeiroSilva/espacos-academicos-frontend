@@ -37,7 +37,7 @@ const FormUsuario = () => {
 
   const carregarProfessores = async () => {
     try {
-      const response = await api.get('/api/professores');
+      const response = await api.get('/professores');
       setProfessores(response.data);
     } catch (error) {
       console.error('Erro ao carregar professores:', error);
@@ -47,7 +47,7 @@ const FormUsuario = () => {
 
   const carregarUsuario = async () => {
     try {
-      const response = await api.get(`/api/usuarios/${id}`);
+      const response = await api.get(`/usuarios/${id}`);
       setFormData(response.data);
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
@@ -91,9 +91,9 @@ const FormUsuario = () => {
 
     try {
       if (id) {
-        await api.put(`/api/usuarios/${id}`, formData);
+        await api.put(`/usuarios/${id}`, formData);
       } else {
-        await api.post('/api/usuarios', formData);
+        await api.post('/usuarios', formData);
       }
       navigate('/usuarios');
     } catch (error) {

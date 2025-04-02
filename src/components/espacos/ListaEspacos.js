@@ -52,7 +52,7 @@ const ListaEspacos = () => {
   };
 
   const handleEditar = (id) => {
-    navigate(`/espacos/editar/${id}`);
+    navigate(`/espacos/${id}`);  // Corrigido de /espacos/editar/${id} para /espacos/${id}
   };
 
   const handleExcluirClick = (espaco) => {
@@ -84,27 +84,6 @@ const ListaEspacos = () => {
   const handleCancelExcluir = () => {
     setConfirmDialogOpen(false);
     setEspacoParaExcluir(null);
-  };
-
-  const handleAlternarDisponibilidade = async (espaco) => {
-    showLoading(`Tornando espaço ${espaco.disponivel ? 'indisponível' : 'disponível'}...`);
-    try {
-      const novoStatus = !espaco.disponivel;
-      await api.patch(`/espacos/${espaco.id}/disponibilidade`, { disponivel: novoStatus });
-      showFeedback(
-        `Espaço ${novoStatus ? 'disponibilizado' : 'indisponibilizado'} com sucesso`, 
-        'success'
-      );
-      carregarEspacos();
-    } catch (error) {
-      console.error('Erro ao alterar disponibilidade:', error);
-      showFeedback(
-        error.response?.data?.message || 'Erro ao alterar disponibilidade', 
-        'error'
-      );
-    } finally {
-      hideLoading();
-    }
   };
 
   return (
@@ -174,15 +153,6 @@ const ListaEspacos = () => {
                         onClick={() => handleExcluirClick(espaco)}
                       >
                         Excluir
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color={espaco.disponivel ? "warning" : "success"}
-                        size="small"
-                        onClick={() => handleAlternarDisponibilidade(espaco)}
-                        sx={{ mr: 1 }}
-                      >
-                        {espaco.disponivel ? "Tornar Indisponível" : "Tornar Disponível"}
                       </Button>
                     </TableCell>
                   </TableRow>
