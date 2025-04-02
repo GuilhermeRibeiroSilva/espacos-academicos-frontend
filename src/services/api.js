@@ -1,22 +1,26 @@
 import axios from 'axios';
 
+// Verificar se a configuração base da API está correta
 const api = axios.create({
-  // Certifique-se que o path inclui /api corretamente
-  baseURL: 'http://localhost:8080/api', 
-  // OU mantenha desta forma se o backend já inclui /api nos controllers
-  // baseURL: 'http://localhost:8080', 
+  // Corrigir para não duplicar o "api" no caminho
+  baseURL: 'http://localhost:8080/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Intercepta todas as requisições
+// Interceptor para adicionar o token de autenticação
 api.interceptors.request.use(
-  config => {
+  (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  error => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
 // Intercepta todas as respostas

@@ -383,7 +383,7 @@ const ListaReservas = ({ userType }) => {
                     </Button>
                 </DialogActions>
             </ConfirmDialog>
-            {FeedbackComponent}
+            <FeedbackComponent />
         </PageContainer>
     );
 };

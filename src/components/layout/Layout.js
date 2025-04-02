@@ -10,11 +10,24 @@ import {
   Menu,
   MenuItem,
   Container,
-  Divider
+  Divider,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoading } from '../../contexts/LoadingContext';
+import HomeIcon from '@mui/icons-material/Home';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import PersonIcon from '@mui/icons-material/Person';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import GroupIcon from '@mui/icons-material/Group';
+import AddIcon from '@mui/icons-material/Add';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SettingsIcon from '@mui/icons-material/Settings';
+
+// Importar logo da faculdade
+import LogoFaculdade from '../../img/ucasl-branco.png'; // Certifique-se de ter o logo neste caminho
 
 const Layout = ({ children }) => {
   const { auth, logout, isAdmin } = useAuth();
@@ -22,6 +35,12 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
   const userMenuOpen = Boolean(userMenuAnchorEl);
+  
+  // Novos estados para os submenus
+  const [espacosMenuAnchorEl, setEspacosMenuAnchorEl] = useState(null);
+  const [usuariosMenuAnchorEl, setUsuariosMenuAnchorEl] = useState(null);
+  const [reservasMenuAnchorEl, setReservasMenuAnchorEl] = useState(null);
+  const [professoresMenuAnchorEl, setProfessoresMenuAnchorEl] = useState(null);
   
   const handleUserMenu = (event) => {
     setUserMenuAnchorEl(event.currentTarget);
@@ -39,6 +58,37 @@ const Layout = ({ children }) => {
   const handleNavigate = (path) => {
     navigate(path);
     handleUserMenuClose();
+    closeAllMenus();
+  };
+  
+  // Funções para abrir submenus
+  const handleEspacosMenu = (event) => {
+    setEspacosMenuAnchorEl(event.currentTarget);
+  };
+  
+  const handleUsuariosMenu = (event) => {
+    setUsuariosMenuAnchorEl(event.currentTarget);
+  };
+  
+  const handleReservasMenu = (event) => {
+    setReservasMenuAnchorEl(event.currentTarget);
+  };
+  
+  const handleProfessoresMenu = (event) => {
+    setProfessoresMenuAnchorEl(event.currentTarget);
+  };
+  
+  // Funções para fechar submenus
+  const handleMenuClose = (menuSetter) => {
+    menuSetter(null);
+  };
+  
+  const closeAllMenus = () => {
+    setEspacosMenuAnchorEl(null);
+    setUsuariosMenuAnchorEl(null);
+    setReservasMenuAnchorEl(null);
+    setProfessoresMenuAnchorEl(null);
+    setUserMenuAnchorEl(null);
   };
   
   // Extrair iniciais do nome de usuário para o Avatar
@@ -55,52 +105,43 @@ const Layout = ({ children }) => {
         .substring(0, 2);
     }
     
-    // Caso contrário, usar as iniciais do email
-    return auth.user.username
-      .split('@')[0]
-      .charAt(0)
-      .toUpperCase();
+    // Caso contrário, usar as iniciais do email ou nome de usuário
+    const displayName = auth.user.username.split('@')[0];
+    return displayName.charAt(0).toUpperCase();
   };
   
   const getUserDisplayName = () => {
     if (!auth.user) return '';
-    return auth.user.professorNome || auth.user.username;
+    if (auth.user.professorNome) return auth.user.professorNome;
+    return auth.isAdmin ? 'Administrador' : auth.user.username.split('@')[0];
   };
   
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      
       <AppBar position="static" sx={{ bgcolor: '#0F1140' }}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Sistema de Espaços Acadêmicos
-          </Typography>
+          {/* Logo e Título */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <img 
+              src={LogoFaculdade} 
+              alt="Logo da Faculdade" 
+              style={{ height: 40, marginRight: 10 }} 
+            />
+            <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
+              SCEA
+            </Typography>
+          </Box>
           
-          {auth.user && (
+          {auth.isAuthenticated && (
             <>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Button color="inherit" onClick={() => navigate('/dashboard')}>
-                  Dashboard
-                </Button>
-                
-                {/* Mostrar opções administrativas apenas para admins */}
-                {auth.isAdmin && (
-                  <>
-                    <Button color="inherit" onClick={() => navigate('/espacos')}>
-                      Espaços
-                    </Button>
-                    <Button color="inherit" onClick={() => navigate('/professores')}>
-                      Professores
-                    </Button>
-                    <Button color="inherit" onClick={() => navigate('/usuarios')}>
-                      Usuários
-                    </Button>
-                  </>
-                )}
-                
-                {/* Mostrar para todos os usuários autenticados */}
-                <Button color="inherit" onClick={() => navigate('/reservas')}>
-                  Reservas
+              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'row-reverse'}}>
+                {/* Botão Dashboard/Início para todos */}
+                <Button 
+                  color="inherit" 
+                  onClick={() => navigate('/dashboard')}
+                  startIcon={<HomeIcon />}
+                >
+                  Início
                 </Button>
               </Box>
               
@@ -128,19 +169,84 @@ const Layout = ({ children }) => {
                   vertical: 'top',
                   horizontal: 'right',
                 }}
+                PaperProps={{
+                  elevation: 0,
+                  sx: {
+                    overflow: 'visible',
+                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                    mt: 1.5,
+                    width: 200,
+                    '& .MuiAvatar-root': {
+                      width: 32,
+                      height: 32,
+                      ml: -0.5,
+                      mr: 1,
+                    },
+                  },
+                }}
               >
                 <MenuItem disabled>
-                  {getUserDisplayName()} ({auth.isAdmin ? 'Admin' : 'Professor'})
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    {getUserDisplayName()}
+                  </Typography>
+                </MenuItem>
+                <MenuItem disabled>
+                  <Typography variant="body2" color="text.secondary">
+                    {auth.isAdmin ? 'Administrador' : 'Professor'}
+                  </Typography>
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={() => handleNavigate('/perfil')}>
-                  Meu Perfil
-                </MenuItem>
-                <MenuItem onClick={() => handleNavigate('/alterar-senha')}>
-                  Alterar Senha
-                </MenuItem>
+                
+                {/* Menu de opções específicas baseado no tipo de usuário */}
+                {auth.isAdmin ? (
+                  <div>
+                    <MenuItem onClick={() => handleNavigate('/espacos')}>
+                      <ListItemIcon>
+                        <MeetingRoomIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Espaços" />
+                    </MenuItem>
+
+                    <MenuItem onClick={() => handleNavigate('/professores')}>
+                      <ListItemIcon>
+                        <GroupIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Professores" />
+                    </MenuItem>
+                    
+                    <MenuItem onClick={() => handleNavigate('/usuarios')}>
+                      <ListItemIcon>
+                        <PersonIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Usuários" />
+                    </MenuItem>
+                    
+                    <MenuItem onClick={() => handleNavigate('/reservas')}>
+                      <ListItemIcon>
+                        <CalendarMonthIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Reservas" />
+                    </MenuItem>
+                  </div>
+                ) : (
+                  // Menu para professores
+                  <div>
+                    <MenuItem onClick={() => handleNavigate('/reservas')}>
+                      <ListItemIcon>
+                        <CalendarMonthIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Reservas" />
+                    </MenuItem>
+                  </div>
+                )}
+                
                 <Divider />
-                <MenuItem onClick={handleLogout}>Sair</MenuItem>
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="Sair" />
+                </MenuItem>
               </Menu>
             </>
           )}
@@ -151,13 +257,6 @@ const Layout = ({ children }) => {
         {children}
       </Container>
       
-      <Box component="footer" sx={{ py: 2, bgcolor: '#f5f5f5', mt: 'auto' }}>
-        <Container>
-          <Typography variant="body2" color="text.secondary" align="center">
-            © {new Date().getFullYear()} Sistema de Espaços Acadêmicos
-          </Typography>
-        </Container>
-      </Box>
     </Box>
   );
 };

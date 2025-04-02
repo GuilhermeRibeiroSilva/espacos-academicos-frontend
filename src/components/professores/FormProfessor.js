@@ -24,6 +24,8 @@ const FormProfessor = () => {
     escola: ''
   });
   
+  const [loading, setLoading] = useState(false);
+  
   useEffect(() => {
     if (isEdicao) {
       carregarProfessor();
@@ -33,7 +35,7 @@ const FormProfessor = () => {
   const carregarProfessor = async () => {
     showLoading('Carregando dados do professor...');
     try {
-      const response = await api.get(`/api/professores/${id}`); // Corrigido para incluir /api/
+      const response = await api.get(`/api/professores/${id}`);
       setFormData({
         nome: response.data.nome || '',
         escola: response.data.escola || ''
@@ -58,30 +60,26 @@ const FormProfessor = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.nome || !formData.escola) {
-      showFeedback('Preencha todos os campos obrigatórios', 'error');
-      return;
-    }
-    
-    showLoading(isEdicao ? 'Atualizando professor...' : 'Cadastrando professor...');
-    
     try {
-      if (isEdicao) {
-        await api.put(`/api/professores/${id}`, formData); // Corrigido
-        showFeedback('Professor atualizado com sucesso', 'success');
+      setLoading(true);
+      
+      if (id) {
+        await api.put(`/professores/${id}`, formData);
+        showFeedback('Professor atualizado com sucesso!', 'success');
       } else {
-        await api.post('/api/professores', formData); // Corrigido
-        showFeedback('Professor cadastrado com sucesso', 'success');
+        await api.post('/professores', formData);
+        showFeedback('Professor cadastrado com sucesso!', 'success');
       }
+      
       navigate('/professores');
     } catch (error) {
       console.error('Erro ao salvar professor:', error);
       showFeedback(
-        error.response?.data?.message || 'Erro ao salvar professor', 
+        `Erro ao ${id ? 'atualizar' : 'cadastrar'} professor. ${error.response?.data?.message || error.message}`,
         'error'
       );
     } finally {
-      hideLoading();
+      setLoading(false);
     }
   };
   
@@ -91,7 +89,7 @@ const FormProfessor = () => {
   
   return (
     <div>
-      {FeedbackComponent}
+      <FeedbackComponent />
       <Typography variant="h4" sx={{ mb: 4 }}>
         {isEdicao ? 'Editar Professor' : 'Cadastrar Professor'}
       </Typography>

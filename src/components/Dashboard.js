@@ -1,227 +1,251 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom'; // Adicione esta importação
-import { 
-  Box, Typography, Grid, Paper, Card, CardContent, 
-  CardHeader, Divider, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Button 
+import {
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  Card,
+  CardContent,
+  CardHeader,
+  Divider,
+  Badge,
+  Tooltip,
+  TextField
 } from '@mui/material';
-import api from '../services/api';
+import { styled } from '@mui/material/styles';
+import { LocalizationProvider, StaticDatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ptBR from 'date-fns/locale/pt-BR';
+import { format, isSameDay } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { useLoading } from '../contexts/LoadingContext';
+import api from '../services/api';
+
+// Componente estilizado para células do calendário com reservas
+const StyledBadge = styled(Badge)(({ theme }) => ({
+  '& .MuiBadge-badge': {
+    right: -3,
+    top: 3,
+    border: `2px solid ${theme.palette.background.paper}`,
+    padding: '0 4px',
+  },
+}));
 
 const Dashboard = () => {
-  const { auth, isAdmin } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
-  const navigate = useNavigate(); // Adicione esta linha
+  const { auth } = useAuth();
   const [reservas, setReservas] = useState([]);
-  const [espacos, setEspacos] = useState([]);
-  const [professores, setProfessores] = useState([]);
-  const [estatisticas, setEstatisticas] = useState({
-    totalReservas: 0,
-    reservasHoje: 0,
-    espacosDisponiveis: 0,
-    totalProfessores: 0,
-    espacosEmUso: 0
-  });
-
+  const [professorCount, setProfessorCount] = useState(0);
+  const [espacosCount, setEspacosCount] = useState(0);
+  const [reservasHoje, setReservasHoje] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [reservasDoDia, setReservasDoDia] = useState([]);
+  
+  // Busca de dados ao carregar o componente
   useEffect(() => {
-    carregarDadosIniciais();
-  }, []);
-
-  const carregarDadosIniciais = async () => {
-    showLoading('Carregando dados...');
-    try {
-      // Carregar espaços
-      const espacosResponse = await api.get('/espacos');
-      const espacosData = espacosResponse.data;
-      setEspacos(espacosData);
-
-      // Carregar reservas
-      const reservasResponse = await api.get('/reservas');
-      let reservasData = reservasResponse.data;
-
-      // As reservas já vêm filtradas do backend conforme o tipo de usuário
-      const reservasCorrigidas = reservasData.map(reserva => {
-        reserva.dataObj = normalizarData(reserva.data);
-        return reserva;
-      });
-
-      setReservas(reservasCorrigidas);
+    const fetchDashboardData = async () => {
+      try {
+        // Buscar todas as reservas
+        const reservasResponse = await api.get('/reservas');
+        setReservas(reservasResponse.data);
+        
+        // Contar reservas de hoje
+        const hoje = new Date();
+        const reservasDeHoje = reservasResponse.data.filter(reserva => 
+          isSameDay(new Date(reserva.dataReserva), hoje)
+        );
+        setReservasHoje(reservasDeHoje.length);
+        
+        if (auth.isAdmin) {
+          // Dados específicos para admin
+          const professoresResponse = await api.get('/professores');
+          setProfessorCount(professoresResponse.data.length);
+          
+          const espacosResponse = await api.get('/espacos');
+          setEspacosCount(espacosResponse.data.length);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+      }
+    };
+    
+    fetchDashboardData();
+  }, [auth.isAdmin]);
+  
+  // Atualiza as reservas do dia selecionado
+  useEffect(() => {
+    const filtrarReservasDoDia = () => {
+      const reservasFiltradas = reservas.filter(reserva => 
+        isSameDay(new Date(reserva.dataReserva), selectedDate)
+      );
       
-      // Carregar professores somente se for admin
-      if (auth.isAdmin) {
-        const professoresResponse = await api.get('/professores');
-        setProfessores(professoresResponse.data);
-      } else if (auth.isProfessor) {
-        // Se for professor, colocamos apenas ele mesmo na lista
-        setProfessores([{
-          id: auth.user.professorId,
-          nome: auth.user.professorNome
-        }]);
+      // Se for professor, filtrar apenas as reservas dele
+      if (!auth.isAdmin && auth.user && auth.user.professorId) {
+        return reservasFiltradas.filter(r => r.professorId === auth.user.professorId);
       }
       
-      atualizarEstatisticas(reservasCorrigidas, espacosData, professores);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      hideLoading();
-    }
-  };
-  
-  const normalizarData = (dataString) => {
-    if (!dataString) return null;
-    try {
-      // Garantir formato consistente
-      if (typeof dataString === 'string') {
-        const [ano, mes, dia] = dataString.split('-');
-        return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
-      }
-      return new Date(dataString);
-    } catch (e) {
-      console.error("Erro ao normalizar data:", e);
-      return null;
-    }
-  };
-  
-  const atualizarEstatisticas = (reservas, espacos, professores) => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+      return reservasFiltradas;
+    };
     
-    const reservasAtivas = reservas.filter(r => r.status !== 'CANCELADO');
-    const reservasHoje = reservasAtivas.filter(r => {
-      const data = r.dataObj;
-      if (!data) return false;
-      return data.getTime() === hoje.getTime();
+    setReservasDoDia(filtrarReservasDoDia());
+  }, [selectedDate, reservas, auth.isAdmin, auth.user]);
+  
+  // Função de renderização personalizada para o calendário
+  const renderDayWithReservas = (day, _values, DayComponentProps) => {
+    const reservasNoDia = reservas.filter(reserva => {
+      const dataReserva = new Date(reserva.dataReserva);
+      return isSameDay(dataReserva, day);
     });
     
-    const espacosDisponiveis = espacos.filter(e => e.disponivel).length;
-    const espacosEmUso = new Set(
-      reservasHoje
-        .filter(r => {
-          const agora = new Date();
-          const horaInicial = r.horaInicial.substring(0, 5);
-          const horaFinal = r.horaFinal.substring(0, 5);
-          const [horaInicialH, horaInicialM] = horaInicial.split(':').map(Number);
-          const [horaFinalH, horaFinalM] = horaFinal.split(':').map(Number);
-          
-          const inicioReserva = new Date(hoje);
-          inicioReserva.setHours(horaInicialH, horaInicialM, 0);
-          
-          const fimReserva = new Date(hoje);
-          fimReserva.setHours(horaFinalH, horaFinalM, 0);
-          
-          return agora >= inicioReserva && agora <= fimReserva;
-        })
-        .map(r => r.espacoAcademico.id)
-    ).size;
+    // Filtra apenas as reservas do professor atual se não for admin
+    let count = reservasNoDia.length;
+    if (!auth.isAdmin && auth.user && auth.user.professorId) {
+      count = reservasNoDia.filter(r => r.professorId === auth.user.professorId).length;
+    }
     
-    setEstatisticas({
-      totalReservas: reservasAtivas.length,
-      reservasHoje: reservasHoje.length,
-      espacosDisponiveis,
-      totalProfessores: professores.length,
-      espacosEmUso
-    });
+    return (
+      <Tooltip 
+        title={count > 0 ? `${count} reserva(s)` : 'Nenhuma reserva'} 
+        arrow
+      >
+        <StyledBadge
+          color="primary"
+          badgeContent={count > 0 ? count : null}
+        >
+          <div {...DayComponentProps} />
+        </StyledBadge>
+      </Tooltip>
+    );
   };
   
-  // Resto do componente com a interface...
-
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
+      <Typography variant="h4" component="h1" gutterBottom>
+        Meu Dashboard
       </Typography>
       
-      <Grid container spacing={3}>
-        {/* Cards de estatísticas */}
-        <Grid item xs={12} md={2.4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h5" component="div">
-                {estatisticas.totalReservas}
-              </Typography>
-              <Typography color="text.secondary">
-                Reservas Ativas
-              </Typography>
-            </CardContent>
-          </Card>
+      <Grid container spacing={4}>
+        {/* Estatísticas apenas para Admin */}
+        {auth.isAdmin && (
+          <Grid item xs={12} md={4}>
+            <Card elevation={3}>
+              <CardContent>
+                <Typography variant="h6">
+                  Professores Cadastrados: {professorCount}
+                </Typography>
+              </CardContent>
+              <Divider />
+              <CardContent>
+                <Typography variant="h6">
+                  Espaços Disponíveis: {espacosCount}
+                </Typography>
+              </CardContent>
+              <Divider />
+              <CardContent>
+                <Typography variant="h6">
+                  Espaços em Uso: {}
+                </Typography>
+              </CardContent>
+              <Divider />
+              <CardContent>
+                <Typography variant="h6">
+                  Reservas Hoje: {reservasHoje}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+        
+        {/* Calendário */}
+        <Grid item xs={12} md={auth.isAdmin ? 8 : 6}>
+          <Paper elevation={3} sx={{ p: 2 }}>
+            <Typography variant="h6" mb={2}>
+              Cronograma de Reservas
+            </Typography>
+            <Box sx={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              '& .MuiPickersLayout-root': {
+                width: '100%', 
+                maxWidth: '100%',
+                '& .MuiPickersLayout-contentWrapper': {
+                  width: '100%',
+                  '& .MuiDateCalendar-root': {
+                    width: '100%',
+                    maxHeight: 'none'
+                  }
+                }
+              },
+              '& .MuiDayCalendar-header, .MuiDayCalendar-weekContainer': {
+                justifyContent: 'space-around'
+              },
+              '& .MuiPickersDay-root': {
+                fontSize: '0.9rem',
+                margin: '2px 0',
+                height: 30,
+                width: 30
+              }
+            }}>
+              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+                <StaticDatePicker
+                  displayStaticWrapperAs="desktop"
+                  value={selectedDate}
+                  onChange={(newValue) => setSelectedDate(newValue)}
+                  renderDay={renderDayWithReservas}
+                  slots={{
+                    actionBar: () => null // Remove a barra de ações
+                  }}
+                  slotProps={{
+                    day: {
+                      sx: { 
+                        fontSize: '0.9rem',
+                        width: 40,
+                        height: 40,
+                        margin: '1px'
+                      }
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Box>
+          </Paper>
         </Grid>
         
-        {/* Outras estatísticas... */}
-        
-        {/* Conteúdo específico por tipo de usuário */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
+        {/* Reservas do dia selecionado */}
+        <Grid item xs={12} md={auth.isAdmin ? 12 : 6}>
+          <Paper elevation={3} sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
-              {auth.isAdmin 
-                ? 'Gerenciamento do Sistema' 
-                : 'Minhas Reservas Recentes'}
+              Reservas do dia: {format(selectedDate, 'dd/MM/yyyy')}
             </Typography>
             
-            {auth.isAdmin ? (
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Button 
-                    variant="contained" 
-                    fullWidth
-                    onClick={() => navigate('/espacos')}
-                  >
-                    Gerenciar Espaços
-                  </Button>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Button 
-                    variant="contained" 
-                    fullWidth
-                    onClick={() => navigate('/professores')}
-                  >
-                    Gerenciar Professores
-                  </Button>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Button 
-                    variant="contained" 
-                    fullWidth
-                    onClick={() => navigate('/usuarios')}
-                  >
-                    Gerenciar Usuários
-                  </Button>
-                </Grid>
+            {reservasDoDia.length > 0 ? (
+              <Grid container spacing={2} mt={1}>
+                {reservasDoDia.map((reserva) => (
+                  <Grid item xs={12} sm={6} md={4} key={reserva.id}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {reserva.espacoNome || 'Espaço não especificado'}
+                        </Typography>
+                        <Typography variant="body2">
+                          Horário: {format(new Date(reserva.horaInicio), 'HH:mm')} - 
+                                  {format(new Date(reserva.horaFim), 'HH:mm')}
+                        </Typography>
+                        {auth.isAdmin && (
+                          <Typography variant="body2">
+                            Professor: {reserva.professorNome || 'Não informado'}
+                          </Typography>
+                        )}
+                        <Typography variant="body2">
+                          Finalidade: {reserva.finalidade || 'Não informada'}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
               </Grid>
             ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Espaço</TableCell>
-                      <TableCell>Data</TableCell>
-                      <TableCell>Horário</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {/* Exibir reservas do professor logado */}
-                    {reservas.slice(0, 5).map((reserva) => (
-                      <TableRow key={reserva.id}>
-                        <TableCell>
-                          {reserva.espacoAcademico.sigla} - {reserva.espacoAcademico.nome}
-                        </TableCell>
-                        <TableCell>
-                          {format(normalizarData(reserva.data), 'dd/MM/yyyy', { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          {reserva.horaInicial.substring(0, 5)} às {reserva.horaFinal.substring(0, 5)}
-                        </TableCell>
-                        <TableCell>
-                          {reserva.status}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+                Não há reservas para esta data.
+              </Typography>
             )}
           </Paper>
         </Grid>

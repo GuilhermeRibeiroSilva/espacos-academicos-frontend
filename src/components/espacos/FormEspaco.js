@@ -117,7 +117,7 @@ const FormEspaco = () => {
 
   return (
     <Container maxWidth="md">
-      {FeedbackComponent}
+      <FeedbackComponent />
       <Typography variant="h4" gutterBottom>
         {isEdicao ? 'Editar Espaço Acadêmico' : 'Cadastrar Espaço Acadêmico'}
       </Typography>

@@ -277,7 +277,7 @@ const GerenciarUsuarios = () => {
 
   return (
     <div>
-      {FeedbackComponent}
+      <FeedbackComponent />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h5">Gerenciar Usuários</Typography>
         <Button

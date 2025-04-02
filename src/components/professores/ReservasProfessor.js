@@ -87,7 +87,7 @@ const ReservasProfessor = () => {
 
   return (
     <div>
-      {FeedbackComponent}
+      <FeedbackComponent />
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         <Button 
           startIcon={<ArrowBackIcon />} 

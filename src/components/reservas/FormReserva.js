@@ -437,7 +437,7 @@ const FormReserva = () => {
                     </ButtonContainer>
                 </form>
             </FormContainer>
-            {FeedbackComponent}
+            <FeedbackComponent />
         </Box>
     );
 };
