@@ -10,19 +10,19 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ptBR from 'date-fns/locale/pt-BR';
 import api from '../../services/api';
 
-// Componentes estilizados
+// Componentes estilizados para seguir o padrão do site
 const FormContainer = styled(Box)(({ theme }) => ({
   backgroundColor: '#0F1140',
   borderRadius: '10px',
   padding: '40px',
   width: '100%',
-  maxWidth: '600px',
+  maxWidth: '800px',
   margin: '0 auto',
   boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
 }));
 
 const PageTitle = styled(Typography)({
-  color: '#0F1140',
+  color: '#FFFFFF',
   marginBottom: '24px',
   textAlign: 'center',
   fontSize: '28px',
@@ -70,43 +70,13 @@ const StyledTextField = styled(TextField)({
   },
 });
 
-const StyledDatePicker = styled(DatePicker)(({ theme }) => ({
-  backgroundColor: '#F2EEFF',
+const StyledButton = styled(Button)(({ theme, variant }) => ({
+  backgroundColor: variant === 'contained' ? '#F2E085' : 'transparent',
+  color: variant === 'contained' ? '#0F1140' : '#F2E085',
+  border: variant === 'outlined' ? '1px solid #F2E085' : 'none',
   borderRadius: '8px',
-  marginBottom: '20px',
-  width: '100%',
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': {
-      border: 'none',
-    },
-    '&:hover fieldset': {
-      border: 'none',
-    },
-    '&.Mui-focused fieldset': {
-      border: 'none',
-    },
-  },
-  '& input': {
-    padding: '15px',
-  },
-}));
-
-const ButtonContainer = styled(Box)({
-  display: 'flex',
-  gap: '16px',
-  justifyContent: 'center',
-  marginTop: '30px',
-  width: '100%',
-});
-
-const ActionButton = styled(Button)(({ variant }) => ({
-  flex: 1,
-  padding: '12px 24px',
-  borderRadius: '8px',
+  padding: '10px 20px',
   fontWeight: 'bold',
-  backgroundColor: variant === 'contained' ? '#F2EEFF' : 'transparent',
-  color: variant === 'contained' ? '#0F1140' : '#F2EEFF',
-  border: variant === 'contained' ? 'none' : '1px solid #F2EEFF',
   '&:hover': {
     backgroundColor: variant === 'contained' ? '#E5E0FF' : 'rgba(242, 238, 255, 0.1)',
   },
@@ -157,6 +127,9 @@ const FormReserva = () => {
   const [espacos, setEspacos] = useState([]);
   const [professores, setProfessores] = useState([]);
   const [error, setError] = useState(null);
+
+  // Adicionar estado para horários disponíveis
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState({});
 
   // Função local de feedback
   const showFeedback = (message, severity = 'info') => {
@@ -230,6 +203,39 @@ const FormReserva = () => {
     // Sem dependências para evitar re-execução
   }, []);
 
+  // Adicionar função para carregar horários disponíveis
+  const carregarHorariosDisponiveis = async () => {
+    if (!formData.espacoAcademico || !formData.data || !formData.professor) {
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setLoadingMessage('Verificando horários disponíveis...');
+      
+      const dataFormatada = formatarDataParaAPI(formData.data);
+      const response = await api.get('/reservas/horarios-disponiveis', {
+        params: {
+          espacoId: formData.espacoAcademico,
+          data: dataFormatada,
+          professorId: formData.professor
+        }
+      });
+      
+      setHorariosDisponiveis(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar horários disponíveis:', error);
+      showFeedback('Erro ao verificar horários disponíveis', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Modificar useEffect para chamar a verificação quando campos relevantes mudam
+  useEffect(() => {
+    carregarHorariosDisponiveis();
+  }, [formData.espacoAcademico, formData.data, formData.professor]);
+
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -272,6 +278,7 @@ const FormReserva = () => {
   const formatarDataParaAPI = (data) => {
     if (!data) return null;
 
+    // Usando a data local sem ajuste de timezone
     const year = data.getFullYear();
     const month = String(data.getMonth() + 1).padStart(2, '0');
     const day = String(data.getDate()).padStart(2, '0');
@@ -335,15 +342,65 @@ const FormReserva = () => {
     navigate('/reservas');
   };
 
+  // Componente personalizado para seleção de hora com slots disponíveis/indisponíveis
+  const HoraSelect = ({ name, value, onChange, horariosDisponiveis, minHora, maxHora }) => {
+    // Gerar opções de hora de 7:00 às 23:00 em intervalos de 30 minutos
+    const gerarOpcoes = () => {
+      const opcoes = [];
+      let hora = 7;
+      let minuto = 0;
+      
+      while (hora < 23 || (hora === 23 && minuto === 0)) {
+        const horaFormatada = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
+        const disponivel = horariosDisponiveis[horaFormatada] !== false;
+        
+        opcoes.push({ valor: horaFormatada, disponivel });
+        
+        // Incrementar 30 minutos
+        minuto += 30;
+        if (minuto >= 60) {
+          hora++;
+          minuto = 0;
+        }
+      }
+      
+      return opcoes;
+    };
+    
+    const opcoes = gerarOpcoes();
+    
+    return (
+      <StyledSelect
+        name={name}
+        value={value}
+        onChange={onChange}
+        required
+        displayEmpty
+      >
+        <MenuItem value="" disabled>Selecione</MenuItem>
+        {opcoes.map(({ valor, disponivel }) => (
+          <MenuItem 
+            key={valor} 
+            value={valor} 
+            disabled={!disponivel}
+            sx={{ opacity: disponivel ? 1 : 0.5 }}
+          >
+            {valor}
+          </MenuItem>
+        ))}
+      </StyledSelect>
+    );
+  };
+
   if (isLoading) {
     return <LoadingIndicator message={loadingMessage} />;
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
+    <FormContainer>
+      <PageTitle>
         {isEdicao ? 'Editar Reserva' : 'Nova Reserva'}
-      </Typography>
+      </PageTitle>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -352,112 +409,101 @@ const FormReserva = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
+            <FormLabel>Espaço Acadêmico</FormLabel>
             <FormControl fullWidth>
-              <InputLabel id="espaco-label">Espaço Acadêmico</InputLabel>
-              <Select
-                labelId="espaco-label"
+              <StyledSelect
                 name="espacoAcademico"
                 value={formData.espacoAcademico}
                 onChange={handleChange}
                 required
+                displayEmpty
               >
+                <MenuItem value="" disabled>Selecione um espaço</MenuItem>
                 {espacos.map((espaco) => (
                   <MenuItem key={espaco.id} value={espaco.id}>
                     {espaco.nome}
                   </MenuItem>
                 ))}
-              </Select>
+              </StyledSelect>
             </FormControl>
           </Grid>
 
           <Grid item xs={12} md={6}>
+            <FormLabel>Professor</FormLabel>
             <FormControl fullWidth>
-              <InputLabel id="professor-label">Professor</InputLabel>
-              <Select
-                labelId="professor-label"
+              <StyledSelect
                 name="professor"
                 value={formData.professor}
                 onChange={handleChange}
                 required
+                displayEmpty
               >
+                <MenuItem value="" disabled>Selecione um professor</MenuItem>
                 {professores.map((professor) => (
                   <MenuItem key={professor.id} value={professor.id}>
                     {professor.nome}
                   </MenuItem>
                 ))}
-              </Select>
+              </StyledSelect>
             </FormControl>
           </Grid>
 
           <Grid item xs={12} md={4}>
+            <FormLabel>Data</FormLabel>
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
               <DatePicker
-                label="Data"
                 value={formData.data}
                 onChange={handleDateChange}
-                renderInput={(params) => <TextField {...params} fullWidth />}
+                renderInput={(params) => <StyledTextField {...params} fullWidth />}
                 disablePast
               />
             </LocalizationProvider>
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <TextField
-              label="Hora Inicial"
+            <FormLabel>Hora Inicial</FormLabel>
+            <HoraSelect
               name="horaInicial"
-              type="time"
               value={formData.horaInicial}
               onChange={handleChange}
-              fullWidth
-              InputLabelProps={{
-                shrink: true,
-              }}
-              inputProps={{
-                step: 300, // 5min
-              }}
+              horariosDisponiveis={horariosDisponiveis}
+              minHora="07:00"
+              maxHora="22:30"
             />
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <TextField
-              label="Hora Final"
+            <FormLabel>Hora Final</FormLabel>
+            <HoraSelect
               name="horaFinal"
-              type="time"
               value={formData.horaFinal}
               onChange={handleChange}
-              fullWidth
-              InputLabelProps={{
-                shrink: true,
-              }}
-              inputProps={{
-                step: 300, // 5min
-              }}
+              horariosDisponiveis={horariosDisponiveis}
+              minHora="07:30"
+              maxHora="23:00"
             />
           </Grid>
 
-          <Grid item xs={12} sx={{ mt: 2 }}>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button
-                variant="outlined"
-                onClick={handleCancel}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="contained"
-                type="submit"
-                color="primary"
-              >
-                {isEdicao ? 'Atualizar' : 'Salvar'}
-              </Button>
-            </Box>
+          <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <StyledButton
+              variant="outlined"
+              onClick={handleCancel}
+            >
+              Cancelar
+            </StyledButton>
+            <StyledButton
+              variant="contained"
+              type="submit"
+            >
+              {isEdicao ? 'Atualizar' : 'Salvar'}
+            </StyledButton>
           </Grid>
         </Grid>
       </form>
 
-      {/* Feedback local */}
+      {/* Manter o Snackbar para feedback */}
       <Snackbar
         open={feedback.open}
         autoHideDuration={6000}
@@ -472,7 +518,7 @@ const FormReserva = () => {
           {feedback.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </FormContainer>
   );
 };
 

@@ -278,9 +278,17 @@ const ListaReservas = ({ userType }) => {
         return agora >= dataHoraInicial && agora <= dataHoraFinal;
     };
 
-    // Função para verificar se uma reserva pode ser editada (mais de 30min antes do início)
+    // Função melhorada para verificar se uma reserva pode ser editada
     const podeEditar = (reserva) => {
-        if (reserva.status === 'UTILIZADO') return false;
+        // Não pode editar reservas já utilizadas, canceladas ou concluídas
+        if (reserva.status === 'UTILIZADO' || reserva.status === 'CANCELADO') {
+            return false;
+        }
+        
+        // Verificar se já está em uso (já começou)
+        if (isReservaEmUso(reserva)) {
+            return false;
+        }
         
         const dataReserva = new Date(reserva.data);
         const horaInicial = reserva.horaInicial.split(':');
@@ -297,7 +305,53 @@ const ListaReservas = ({ userType }) => {
         const diffMs = dataHoraInicial - agora;
         const diffMinutos = Math.floor(diffMs / 60000);
         
+        // Só pode editar se faltar mais de 30 minutos para começar
         return diffMinutos > 30;
+    };
+
+    // Função melhorada para verificar se uma reserva pode ser cancelada
+    const podeCancelar = (reserva) => {
+        // Não pode cancelar reservas já utilizadas ou canceladas
+        if (reserva.status === 'UTILIZADO' || reserva.status === 'CANCELADO') {
+            return false;
+        }
+        
+        // Se a reserva já passou, não pode cancelar
+        const agora = new Date();
+        const dataReserva = new Date(reserva.data);
+        const horaFinal = reserva.horaFinal.split(':');
+        
+        const dataHoraFinal = new Date(
+            dataReserva.getFullYear(),
+            dataReserva.getMonth(),
+            dataReserva.getDate(),
+            parseInt(horaFinal[0]),
+            parseInt(horaFinal[1])
+        );
+        
+        if (agora > dataHoraFinal) {
+            return false;
+        }
+        
+        // Se falta menos de 30 minutos para começar e ainda não começou, não pode cancelar
+        const horaInicial = reserva.horaInicial.split(':');
+        const dataHoraInicial = new Date(
+            dataReserva.getFullYear(),
+            dataReserva.getMonth(),
+            dataReserva.getDate(),
+            parseInt(horaInicial[0]),
+            parseInt(horaInicial[1])
+        );
+        
+        const diffMs = dataHoraInicial - agora;
+        const diffMinutos = Math.floor(diffMs / 60000);
+        
+        // Se falta menos de 30 minutos para começar e ainda não começou, não pode cancelar
+        if (diffMinutos > 0 && diffMinutos < 30) {
+            return false;
+        }
+        
+        return true;
     };
 
     // Função para determinar o status visual da reserva
@@ -389,7 +443,6 @@ const ListaReservas = ({ userType }) => {
                                 const statusVisual = getReservaStatus(reserva);
                                 const emUso = statusVisual === "Em Uso";
                                 const finalizada = statusVisual === "Utilizado" || statusVisual === "Não Utilizado";
-                                const podeScrEditada = podeEditar(reserva);
                                 
                                 return (
                                     <TableRow key={reserva.id}>
@@ -425,23 +478,26 @@ const ListaReservas = ({ userType }) => {
                                             
                                             {!finalizada && (
                                                 <>
-                                                    {podeScrEditada && !emUso && (
+                                                    {podeEditar(reserva) && (
                                                         <ActionButton
                                                             color="secondary"
                                                             onClick={() => editarReserva(reserva.id)}
                                                             disabled={loading}
+                                                            sx={{ mr: 1 }}
                                                         >
                                                             Editar
                                                         </ActionButton>
                                                     )}
                                                     
-                                                    <ActionButton
-                                                        color="error"
-                                                        onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
-                                                        disabled={loading}
-                                                    >
-                                                        Cancelar Reserva
-                                                    </ActionButton>
+                                                    {podeCancelar(reserva) && (
+                                                        <ActionButton
+                                                            color="error"
+                                                            onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
+                                                            disabled={loading}
+                                                        >
+                                                            Cancelar Reserva
+                                                        </ActionButton>
+                                                    )}
                                                 </>
                                             )}
                                         </TableCell>
