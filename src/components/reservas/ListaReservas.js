@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useFeedback } from '../common/Feedback';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Componentes estilizados
 const PageContainer = styled(Box)({
@@ -82,12 +83,7 @@ const ActionButton = styled(Button)(({ color }) => ({
     },
 }));
 
-const StatusChip = styled(Chip)(({ status, sx }) => ({
-    backgroundColor: 
-        status === 'Pendente' ? '#ff9800' : 
-        status === 'Em Uso' ? '#2196f3' :
-        status === 'Cancelado' ? '#f44336' :
-        status === 'Não Utilizado' ? '#9e9e9e' : '#4caf50',
+const StatusChip = styled(Chip)(({ sx }) => ({
     color: 'white',
     fontWeight: 'bold',
     ...sx
@@ -115,7 +111,8 @@ const ListaReservas = ({ userType }) => {
     const [error, setError] = useState(null);
     const { showLoading, hideLoading } = useLoading();
     const { showFeedback, FeedbackComponent } = useFeedback();
-    
+    const { auth } = useAuth();
+
     // Ref para controlar se já carregamos os dados
     const initialLoadComplete = useRef(false);
     // Ref para armazenar o intervalo
@@ -123,31 +120,27 @@ const ListaReservas = ({ userType }) => {
 
     // Atualizado para usar useRef e evitar loops infinitos
     const carregarReservas = useCallback(async () => {
-        // Evitar chamadas duplicadas simultaneamente
         if (loading) return;
-        
+
         setLoading(true);
         showLoading('Carregando reservas...');
-        
+
         try {
             const endpoint = userType === 'professor' ? '/reservas/professor' : '/reservas';
-            
+
             const response = await api.get(endpoint);
-            
-            // Ordenar e filtrar reservas
+
             const reservasOrdenadas = response.data
                 .filter(r => r.status !== 'CANCELADO')
                 .sort((a, b) => {
-                    // Primeiro por data
                     const dataA = new Date(a.data);
                     const dataB = new Date(b.data);
                     if (dataA.getTime() !== dataB.getTime()) {
                         return dataA - dataB;
                     }
-                    // Depois por hora inicial
                     return a.horaInicial.localeCompare(b.horaInicial);
                 });
-            
+
             setReservas(reservasOrdenadas);
         } catch (error) {
             console.error('Erro ao carregar reservas:', error);
@@ -160,22 +153,18 @@ const ListaReservas = ({ userType }) => {
     }, [userType, showLoading, hideLoading, loading]);
 
     useEffect(() => {
-        // Limpar intervalo antigo se existir
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
         }
-        
-        // Carregar dados iniciais apenas uma vez
+
         if (!initialLoadComplete.current) {
             carregarReservas();
         }
-        
-        // Configurar intervalo para atualização periódica
+
         intervalRef.current = setInterval(() => {
             carregarReservas();
-        }, 60000); // Atualizar a cada minuto
-        
-        // Limpar ao desmontar
+        }, 60000);
+
         return () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
@@ -189,17 +178,22 @@ const ListaReservas = ({ userType }) => {
 
     const editarReserva = async (id) => {
         try {
-            // Verificar se a reserva pode ser editada antes de navegar
-            const response = await api.get(`/reservas/${id}/pode-editar`);
+            setLoading(true);
+            
+            // Verificar se a reserva pode ser alterada
+            const response = await api.get(`/reservas/${id}/pode-alterar`);
             
             if (response.data === true) {
+                // Navegar para a página de edição
                 navigate(`/reservas/editar/${id}`);
             } else {
-                showFeedback('Esta reserva não pode mais ser editada', 'warning');
+                showFeedback('Esta reserva não pode mais ser alterada', 'warning');
             }
         } catch (error) {
-            console.error('Erro ao verificar edição:', error);
-            showFeedback('Erro ao verificar se a reserva pode ser editada', 'error');
+            console.error('Erro ao verificar permissão de alteração:', error);
+            showFeedback('Erro ao verificar permissões', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -216,21 +210,19 @@ const ListaReservas = ({ userType }) => {
 
     const handleConfirmAction = async () => {
         if (!selectedReserva) return;
-        
+
         showLoading(actionType === 'cancelar' ? 'Cancelando reserva...' : 'Confirmando utilização...');
 
         try {
             if (actionType === 'cancelar') {
                 await api.delete(`/reservas/${selectedReserva.id}`);
-                // Remover a reserva da lista local imediatamente
                 setReservas(prev => prev.filter(r => r.id !== selectedReserva.id));
                 showFeedback('Reserva cancelada com sucesso', 'success');
             } else if (actionType === 'confirmar') {
                 await api.patch(`/reservas/${selectedReserva.id}/confirmar`);
-                // Atualizar a reserva na lista local
                 setReservas(prev => prev.map(r => {
                     if (r.id === selectedReserva.id) {
-                        return {...r, status: 'UTILIZADO', utilizado: true};
+                        return { ...r, status: 'UTILIZADO', utilizado: true };
                     }
                     return r;
                 }));
@@ -238,8 +230,7 @@ const ListaReservas = ({ userType }) => {
             }
         } catch (error) {
             console.error(`Erro ao ${actionType} reserva:`, error);
-            
-            // Mensagens de erro específicas
+
             if (error.response?.status === 400) {
                 showFeedback(error.response.data.message || `Não foi possível ${actionType} a reserva`, 'error');
             } else {
@@ -251,145 +242,98 @@ const ListaReservas = ({ userType }) => {
         }
     };
 
-    // Função para determinar se uma reserva está em uso (dentro do horário atual)
-    const isReservaEmUso = (reserva) => {
-        const dataReserva = new Date(reserva.data);
-        const horaInicial = reserva.horaInicial.split(':');
-        const horaFinal = reserva.horaFinal.split(':');
-        
-        const dataHoraInicial = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaInicial[0]),
-            parseInt(horaInicial[1])
-        );
-        
-        const dataHoraFinal = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaFinal[0]),
-            parseInt(horaFinal[1])
-        );
-        
-        const agora = new Date();
-        
-        return agora >= dataHoraInicial && agora <= dataHoraFinal;
-    };
-
-    // Função melhorada para verificar se uma reserva pode ser editada
-    const podeEditar = (reserva) => {
-        // Não pode editar reservas já utilizadas, canceladas ou concluídas
-        if (reserva.status === 'UTILIZADO' || reserva.status === 'CANCELADO') {
-            return false;
-        }
-        
-        // Verificar se já está em uso (já começou)
-        if (isReservaEmUso(reserva)) {
-            return false;
-        }
-        
-        const dataReserva = new Date(reserva.data);
-        const horaInicial = reserva.horaInicial.split(':');
-        
-        const dataHoraInicial = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaInicial[0]),
-            parseInt(horaInicial[1])
-        );
-        
-        const agora = new Date();
-        const diffMs = dataHoraInicial - agora;
-        const diffMinutos = Math.floor(diffMs / 60000);
-        
-        // Só pode editar se faltar mais de 30 minutos para começar
-        return diffMinutos > 30;
-    };
-
-    // Função melhorada para verificar se uma reserva pode ser cancelada
-    const podeCancelar = (reserva) => {
-        // Não pode cancelar reservas já utilizadas ou canceladas
-        if (reserva.status === 'UTILIZADO' || reserva.status === 'CANCELADO') {
-            return false;
-        }
-        
-        // Se a reserva já passou, não pode cancelar
-        const agora = new Date();
-        const dataReserva = new Date(reserva.data);
-        const horaFinal = reserva.horaFinal.split(':');
-        
-        const dataHoraFinal = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaFinal[0]),
-            parseInt(horaFinal[1])
-        );
-        
-        if (agora > dataHoraFinal) {
-            return false;
-        }
-        
-        // Se falta menos de 30 minutos para começar e ainda não começou, não pode cancelar
-        const horaInicial = reserva.horaInicial.split(':');
-        const dataHoraInicial = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaInicial[0]),
-            parseInt(horaInicial[1])
-        );
-        
-        const diffMs = dataHoraInicial - agora;
-        const diffMinutos = Math.floor(diffMs / 60000);
-        
-        // Se falta menos de 30 minutos para começar e ainda não começou, não pode cancelar
-        if (diffMinutos > 0 && diffMinutos < 30) {
-            return false;
-        }
-        
-        return true;
-    };
-
-    // Função para determinar o status visual da reserva
     const getReservaStatus = (reserva) => {
-        // Se já está marcada como utilizada
-        if (reserva.utilizado || reserva.status === 'UTILIZADO') {
-            return "Utilizado";
+        switch (reserva.status) {
+            case 'PENDENTE':
+                return "Pendente";
+            case 'EM_USO':
+                return "Em Uso";
+            case 'AGUARDANDO_CONFIRMACAO':
+                return "Aguardando Confirmação";
+            case 'UTILIZADO':
+                return "Utilizado";
+            case 'CANCELADO':
+                return "";
+            default:
+                return "Pendente";
         }
-        
-        // Se está no horário atual
-        if (isReservaEmUso(reserva)) {
-            return "Em Uso";
-        }
-        
-        // Verificar se a reserva já passou
-        const dataReserva = new Date(reserva.data);
-        const horaFinal = reserva.horaFinal.split(':');
-        
-        const dataHoraFinal = new Date(
-            dataReserva.getFullYear(),
-            dataReserva.getMonth(),
-            dataReserva.getDate(),
-            parseInt(horaFinal[0]),
-            parseInt(horaFinal[1])
-        );
-        
-        const agora = new Date();
-        
-        // Se já passou do horário final e não foi marcada como utilizada
-        if (agora > dataHoraFinal) {
-            return "Não Utilizado";
-        }
-        
-        // Se ainda não começou
-        return "Pendente";
     };
 
-    // Funções auxiliares para formatação
+    const podeAlterar = async (reserva) => {
+        if (!auth.isAdmin) return false;
+
+        try {
+            const response = await api.get(`/reservas/${reserva.id}/pode-alterar`);
+            return response.data === true;
+        } catch (error) {
+            console.error('Erro ao verificar permissão de alteração:', error);
+            return false;
+        }
+    };
+
+    const podeCancelar = async (reserva) => {
+        try {
+            const response = await api.get(`/reservas/${reserva.id}/pode-cancelar`);
+            return response.data === true;
+        } catch (error) {
+            console.error('Erro ao verificar permissão de cancelamento:', error);
+            return false;
+        }
+    };
+
+    const podeConfirmarUtilizacao = (reserva) => {
+        return reserva.status === 'EM_USO' || reserva.status === 'AGUARDANDO_CONFIRMACAO';
+    };
+
+    const renderBotoesAcao = (reserva) => {
+        const statusVisual = getReservaStatus(reserva);
+        
+        // Status "Utilizado" - sem ações
+        if (statusVisual === "Utilizado") {
+            return null;
+        }
+        
+        // Status "Em Uso" ou "Aguardando Confirmação" - apenas botão de confirmar utilização
+        if (statusVisual === "Em Uso" || statusVisual === "Aguardando Confirmação") {
+            return (
+                <ActionButton
+                    color="primary"
+                    onClick={() => handleOpenConfirmDialog(reserva, 'confirmar')}
+                    disabled={loading}
+                >
+                    Confirmar Utilização
+                </ActionButton>
+            );
+        }
+        
+        // Status "Pendente" - botões de Alterar (admin) e Cancelar
+        if (statusVisual === "Pendente") {
+            return (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    {auth.isAdmin && (
+                        <ActionButton
+                            color="secondary"
+                            onClick={() => editarReserva(reserva.id)}
+                            disabled={loading}
+                        >
+                            Alterar
+                        </ActionButton>
+                    )}
+                    
+                    <ActionButton
+                        color="error"
+                        onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
+                        disabled={loading}
+                    >
+                        Cancelar
+                    </ActionButton>
+                </Box>
+            );
+        }
+        
+        return null;
+    };
+
     const formatarData = (dataString) => {
         if (!dataString) return '';
         const data = new Date(dataString);
@@ -440,10 +384,10 @@ const ListaReservas = ({ userType }) => {
                             </TableRow>
                         ) : (
                             reservas.map((reserva) => {
+                                if (reserva.status === 'CANCELADO') return null;
+
                                 const statusVisual = getReservaStatus(reserva);
-                                const emUso = statusVisual === "Em Uso";
-                                const finalizada = statusVisual === "Utilizado" || statusVisual === "Não Utilizado";
-                                
+
                                 return (
                                     <TableRow key={reserva.id}>
                                         <TableCell>{reserva.espacoAcademico.nome}</TableCell>
@@ -455,51 +399,17 @@ const ListaReservas = ({ userType }) => {
                                         <TableCell>
                                             <StatusChip
                                                 label={statusVisual}
-                                                status={statusVisual}
                                                 sx={{
-                                                    backgroundColor: 
-                                                        statusVisual === "Utilizado" ? "#4caf50" : 
-                                                        statusVisual === "Em Uso" ? "#2196f3" : 
-                                                        statusVisual === "Não Utilizado" ? "#9e9e9e" : 
-                                                        "#ff9800"
+                                                    backgroundColor:
+                                                        statusVisual === "Utilizado" ? "#4caf50" :
+                                                        statusVisual === "Em Uso" ? "#2196f3" :
+                                                        statusVisual === "Aguardando Confirmação" ? "#ff9800" :
+                                                        "#9c27b0"
                                                 }}
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {emUso && !finalizada && (
-                                                <ActionButton
-                                                    color="primary"
-                                                    onClick={() => handleOpenConfirmDialog(reserva, 'confirmar')}
-                                                    disabled={loading}
-                                                >
-                                                    Confirmar Utilização
-                                                </ActionButton>
-                                            )}
-                                            
-                                            {!finalizada && (
-                                                <>
-                                                    {podeEditar(reserva) && (
-                                                        <ActionButton
-                                                            color="secondary"
-                                                            onClick={() => editarReserva(reserva.id)}
-                                                            disabled={loading}
-                                                            sx={{ mr: 1 }}
-                                                        >
-                                                            Editar
-                                                        </ActionButton>
-                                                    )}
-                                                    
-                                                    {podeCancelar(reserva) && (
-                                                        <ActionButton
-                                                            color="error"
-                                                            onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
-                                                            disabled={loading}
-                                                        >
-                                                            Cancelar Reserva
-                                                        </ActionButton>
-                                                    )}
-                                                </>
-                                            )}
+                                            {renderBotoesAcao(reserva)}
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -509,7 +419,6 @@ const ListaReservas = ({ userType }) => {
                 </Table>
             </StyledTableContainer>
 
-            {/* Dialog de confirmação - mantido igual */}
             <ConfirmDialog
                 open={confirmDialogOpen}
                 onClose={handleCloseConfirmDialog}

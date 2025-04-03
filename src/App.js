@@ -131,6 +131,13 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/reservas/editar/:id" element={
+                <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
+                  <Layout>
+                    <FormReserva />
+                  </Layout>
+                </ProtectedRoute>
+              } />
               
               {/* Rota para gerenciamento de usuários (admin only) */}
               <Route path="/usuarios" element={

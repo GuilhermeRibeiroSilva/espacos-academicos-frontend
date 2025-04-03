@@ -4,11 +4,13 @@ import {
   Box, Typography, TextField, Button, FormControl, InputLabel,
   Select, MenuItem, styled, Grid, Alert, Snackbar, CircularProgress
 } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ptBR from 'date-fns/locale/pt-BR';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Componentes estilizados para seguir o padrão do site
 const FormContainer = styled(Box)(({ theme }) => ({
@@ -30,25 +32,27 @@ const PageTitle = styled(Typography)({
 });
 
 const FormLabel = styled(Typography)({
-  color: 'white',
   marginBottom: '8px',
-  fontSize: '16px',
+  fontWeight: '500',
+  color: '#F2EEFF',
 });
 
-const StyledSelect = styled(Select)({
+const StyledSelect = styled(Select)(({ theme }) => ({
   backgroundColor: '#F2EEFF',
-  borderRadius: '8px',
+  borderRadius: '4px',
   '& .MuiOutlinedInput-notchedOutline': {
-    border: 'none',
+    borderColor: '#E5E0FF',
   },
   '&:hover .MuiOutlinedInput-notchedOutline': {
-    border: 'none',
+    borderColor: '#0F1140',
   },
   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-    border: 'none',
+    borderColor: '#0F1140',
   },
-  marginBottom: '20px',
-});
+  '& .MuiSelect-select': {
+    color: '#0F1140',
+  }
+}));
 
 const StyledTextField = styled(TextField)({
   backgroundColor: '#F2EEFF',
@@ -101,7 +105,8 @@ const LoadingIndicator = ({ message = 'Carregando...' }) => (
 const FormReserva = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEdicao = !!id;
+  const { auth } = useAuth();
+  const isAlteracao = !!id;
 
   // Usar refs para evitar efeitos colaterais
   const dataFetchedRef = useRef(false);
@@ -147,93 +152,111 @@ const FormReserva = () => {
     });
   };
 
-  // Carregar dados iniciais - COM PROTEÇÃO CONTRA LOOP INFINITO
+  // Correções no useEffect para carregar dados
   useEffect(() => {
-    // Esta verificação garante que o efeito só execute uma vez
-    if (dataFetchedRef.current) return;
-
-    const fetchData = async () => {
+    const loadInitialData = async () => {
+      if (isLoading) return; // Evitar múltiplas chamadas
+      
       setIsLoading(true);
       setLoadingMessage('Carregando dados...');
-
+      
       try {
-        console.log('Iniciando carregamento de dados...');
-
-        // Carregar espaços e professores
+        // Carregar listas de espaços e professores simultaneamente
         const [espacosRes, professoresRes] = await Promise.all([
           api.get('/espacos'),
-          api.get('/professores'),
+          api.get('/professores')
         ]);
-
+        
         setEspacos(espacosRes.data);
         setProfessores(professoresRes.data);
-
-        // Se for edição, carregar dados da reserva
+        
+        // Se for modo de edição, carregar dados da reserva existente
         if (id) {
+          console.log('Carregando reserva para edição. ID:', id);
+          
+          // Verificar se é administrador (apenas admins podem editar)
+          if (!auth.isAdmin) {
+            showFeedback('Apenas administradores podem alterar reservas', 'error');
+            navigate('/reservas');
+            return;
+          }
+          
+          // Verificar se a reserva ainda pode ser alterada
+          const podeAlterarRes = await api.get(`/reservas/${id}/pode-alterar`);
+          if (!podeAlterarRes.data) {
+            showFeedback('Esta reserva não pode mais ser alterada', 'warning');
+            navigate('/reservas');
+            return;
+          }
+          
+          // Carregar dados da reserva
           const reservaRes = await api.get(`/reservas/${id}`);
           const reserva = reservaRes.data;
-
+          
+          // Configurar dados do formulário
           setFormData({
             espacoAcademico: reserva.espacoAcademico.id,
             professor: reserva.professor.id,
             data: new Date(reserva.data),
             horaInicial: reserva.horaInicial,
             horaFinal: reserva.horaFinal,
+            finalidade: reserva.finalidade || ''
           });
+          
+          console.log('Dados da reserva carregados:', reserva);
         }
-
-        console.log('Dados carregados com sucesso');
       } catch (error) {
         console.error('Erro ao carregar dados iniciais:', error);
-        setError('Erro ao carregar dados necessários');
-
-        // Mostrar feedback e redirecionar
         showFeedback('Erro ao carregar dados necessários', 'error');
-        // Evitar redirecionamento imediato para permitir que o usuário veja o erro
+        // Redirecionar para lista em caso de erro
         setTimeout(() => navigate('/reservas'), 2000);
       } finally {
         setIsLoading(false);
-        // Marcar que os dados já foram carregados
-        dataFetchedRef.current = true;
       }
     };
+    
+    loadInitialData();
+  }, [id, navigate, auth.isAdmin]);
 
-    fetchData();
-
-    // Sem dependências para evitar re-execução
-  }, []);
-
-  // Adicionar função para carregar horários disponíveis
+  // Função para carregar horários disponíveis
   const carregarHorariosDisponiveis = async () => {
-    if (!formData.espacoAcademico || !formData.data || !formData.professor) {
+    if (!formData.espacoAcademico || !formData.data) {
+      setHorariosDisponiveis({});
       return;
     }
     
     try {
       setIsLoading(true);
-      setLoadingMessage('Verificando horários disponíveis...');
       
+      // Formatar data para API
       const dataFormatada = formatarDataParaAPI(formData.data);
+      
       const response = await api.get('/reservas/horarios-disponiveis', {
         params: {
           espacoId: formData.espacoAcademico,
-          data: dataFormatada,
-          professorId: formData.professor
+          data: dataFormatada
         }
       });
       
       setHorariosDisponiveis(response.data);
+      
     } catch (error) {
       console.error('Erro ao carregar horários disponíveis:', error);
-      showFeedback('Erro ao verificar horários disponíveis', 'error');
+      showFeedback('Erro ao verificar disponibilidade de horários', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Modificar useEffect para chamar a verificação quando campos relevantes mudam
+  // Adicionar useEffect específico para o carregamento de horários disponíveis
   useEffect(() => {
-    carregarHorariosDisponiveis();
+    // Só verificar horários disponíveis se todos os campos necessários estiverem preenchidos
+    if (formData.espacoAcademico && formData.data && formData.professor) {
+      carregarHorariosDisponiveis();
+    } else {
+      // Limpar horários disponíveis se os campos necessários não estiverem preenchidos
+      setHorariosDisponiveis({});
+    }
   }, [formData.espacoAcademico, formData.data, formData.professor]);
 
   // Handle input changes
@@ -290,8 +313,27 @@ const FormReserva = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validações aprimoradas
+    if (!formData.espacoAcademico) {
+      showFeedback('É necessário selecionar um espaço acadêmico', 'error');
+      return;
+    }
+
+    if (!formData.professor) {
+      showFeedback('É necessário selecionar um professor', 'error');
+      return;
+    }
+
     if (!formData.data) {
       showFeedback('É necessário selecionar uma data', 'error');
+      return;
+    }
+
+    // Verificar se a data é futura
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    if (formData.data < hoje) {
+      showFeedback('Não é possível fazer reservas para datas passadas', 'error');
       return;
     }
 
@@ -299,38 +341,50 @@ const FormReserva = () => {
       return;
     }
 
+    // Verificar se os horários selecionados estão disponíveis
+    if (horariosDisponiveis[formData.horaInicial] === false) {
+      showFeedback('O horário inicial selecionado não está disponível', 'error');
+      return;
+    }
+
     try {
       setIsLoading(true);
-      setLoadingMessage(isEdicao ? 'Atualizando reserva...' : 'Criando reserva...');
-
+      setLoadingMessage(id ? 'Atualizando reserva...' : 'Criando reserva...');
+      
       const dadosReserva = {
-        ...formData,
-        data: formatarDataParaAPI(formData.data),
         espacoAcademico: { id: formData.espacoAcademico },
         professor: { id: formData.professor },
+        data: formatarDataParaAPI(formData.data),
+        horaInicial: formData.horaInicial,
+        horaFinal: formData.horaFinal,
+        finalidade: formData.finalidade || null
       };
-
-      if (isEdicao) {
+      
+      // Log para debug
+      console.log('Dados enviados para a API:', dadosReserva);
+      
+      if (id) {
+        // Modo de edição - usar PUT
         await api.put(`/reservas/${id}`, dadosReserva);
         showFeedback('Reserva atualizada com sucesso', 'success');
       } else {
+        // Modo de criação - usar POST
         await api.post('/reservas', dadosReserva);
         showFeedback('Reserva criada com sucesso', 'success');
       }
-
-      // Breve delay para garantir que a mensagem de sucesso seja vista
-      setTimeout(() => navigate('/reservas'), 1000);
+      
+      // Breve delay para feedback antes de redirecionar
+      setTimeout(() => navigate('/reservas'), 1500);
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);
-
-      // Tratamento específico para erro de conflito
+      
+      // Tratamento de erro mais específico
       if (error.response?.status === 409) {
         showFeedback('Já existe uma reserva para este espaço neste horário', 'error');
+      } else if (error.response?.status === 400) {
+        showFeedback(error.response.data.message || 'Dados inválidos para reserva', 'error');
       } else {
-        showFeedback(
-          error.response?.data?.message || 'Erro ao salvar reserva',
-          'error'
-        );
+        showFeedback('Erro ao salvar reserva', 'error');
       }
     } finally {
       setIsLoading(false);
@@ -342,9 +396,9 @@ const FormReserva = () => {
     navigate('/reservas');
   };
 
-  // Componente personalizado para seleção de hora com slots disponíveis/indisponíveis
-  const HoraSelect = ({ name, value, onChange, horariosDisponiveis, minHora, maxHora }) => {
-    // Gerar opções de hora de 7:00 às 23:00 em intervalos de 30 minutos
+  // Componente personalizado para seleção de hora com slots de 10 minutos
+  const HoraSelect = ({ name, value, onChange, horariosDisponiveis, label }) => {
+    // Gerar opções de hora de 7:00 às 23:00 em intervalos de 10 minutos
     const gerarOpcoes = () => {
       const opcoes = [];
       let hora = 7;
@@ -352,12 +406,13 @@ const FormReserva = () => {
       
       while (hora < 23 || (hora === 23 && minuto === 0)) {
         const horaFormatada = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
-        const disponivel = horariosDisponiveis[horaFormatada] !== false;
+        // Verificar se o horário está disponível no objeto horariosDisponiveis
+        const disponivel = !horariosDisponiveis || horariosDisponiveis[horaFormatada] !== false;
         
         opcoes.push({ valor: horaFormatada, disponivel });
         
-        // Incrementar 30 minutos
-        minuto += 30;
+        // Incrementar 10 minutos
+        minuto += 10;
         if (minuto >= 60) {
           hora++;
           minuto = 0;
@@ -370,25 +425,39 @@ const FormReserva = () => {
     const opcoes = gerarOpcoes();
     
     return (
-      <StyledSelect
-        name={name}
-        value={value}
-        onChange={onChange}
-        required
-        displayEmpty
-      >
-        <MenuItem value="" disabled>Selecione</MenuItem>
-        {opcoes.map(({ valor, disponivel }) => (
-          <MenuItem 
-            key={valor} 
-            value={valor} 
-            disabled={!disponivel}
-            sx={{ opacity: disponivel ? 1 : 0.5 }}
-          >
-            {valor}
-          </MenuItem>
-        ))}
-      </StyledSelect>
+      <FormControl fullWidth>
+        <FormLabel>{label}</FormLabel>
+        <StyledSelect
+          name={name}
+          value={value}
+          onChange={onChange}
+          required
+        >
+          <MenuItem value="" disabled>Selecione</MenuItem>
+          {opcoes.map(({ valor, disponivel }) => (
+            <MenuItem 
+              key={valor} 
+              value={valor} 
+              disabled={!disponivel}
+              sx={{ 
+                opacity: disponivel ? 1 : 0.5,
+                backgroundColor: disponivel ? 'inherit' : 'rgba(255, 0, 0, 0.1)',
+                '&:hover': {
+                  backgroundColor: disponivel ? 'rgba(229, 224, 255, 0.1)' : 'rgba(255, 0, 0, 0.1)',
+                },
+                '&::after': disponivel ? {} : {
+                  content: '"- Ocupado"',
+                  marginLeft: '8px',
+                  color: '#d32f2f',
+                  fontStyle: 'italic'
+                }
+              }}
+            >
+              {valor}
+            </MenuItem>
+          ))}
+        </StyledSelect>
+      </FormControl>
     );
   };
 
@@ -399,7 +468,7 @@ const FormReserva = () => {
   return (
     <FormContainer>
       <PageTitle>
-        {isEdicao ? 'Editar Reserva' : 'Nova Reserva'}
+        {isAlteracao ? 'Alterar Reserva' : 'Nova Reserva'}
       </PageTitle>
 
       {error && (
@@ -456,33 +525,72 @@ const FormReserva = () => {
               <DatePicker
                 value={formData.data}
                 onChange={handleDateChange}
-                renderInput={(params) => <StyledTextField {...params} fullWidth />}
-                disablePast
+                shouldDisableDate={(date) => {
+                  // Desabilitar datas passadas
+                  const hoje = new Date();
+                  hoje.setHours(0, 0, 0, 0);
+                  return date < hoje;
+                }}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    fullWidth 
+                    sx={{
+                      backgroundColor: '#F2EEFF',  // Fundo claro para contraste
+                      borderRadius: '4px',
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#E5E0FF',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#0F1140',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#0F1140',
+                        }
+                      },
+                      '& .MuiInputBase-input': {
+                        color: '#0F1140',  // Cor do texto para contraste
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#0F1140',
+                      }
+                    }}
+                  />
+                )}
               />
             </LocalizationProvider>
           </Grid>
 
+          {formData.espacoAcademico && formData.data && Object.keys(horariosDisponiveis).length > 0 && (
+            <Grid item xs={12}>
+              <Alert 
+                severity="info" 
+                sx={{ mb: 2 }}
+                icon={<InfoIcon />}
+              >
+                Os horários em vermelho já estão reservados e não podem ser selecionados.
+              </Alert>
+            </Grid>
+          )}
+
           <Grid item xs={12} md={4}>
-            <FormLabel>Hora Inicial</FormLabel>
             <HoraSelect
               name="horaInicial"
               value={formData.horaInicial}
               onChange={handleChange}
               horariosDisponiveis={horariosDisponiveis}
-              minHora="07:00"
-              maxHora="22:30"
+              label="Hora Inicial"
             />
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <FormLabel>Hora Final</FormLabel>
             <HoraSelect
               name="horaFinal"
               value={formData.horaFinal}
               onChange={handleChange}
               horariosDisponiveis={horariosDisponiveis}
-              minHora="07:30"
-              maxHora="23:00"
+              label="Hora Final"
             />
           </Grid>
 
@@ -497,7 +605,7 @@ const FormReserva = () => {
               variant="contained"
               type="submit"
             >
-              {isEdicao ? 'Atualizar' : 'Salvar'}
+              {isAlteracao ? 'Alterar' : 'Salvar'}
             </StyledButton>
           </Grid>
         </Grid>
