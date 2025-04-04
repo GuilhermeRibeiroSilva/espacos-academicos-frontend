@@ -1,467 +1,456 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    Button,
-    Typography,
-    Chip,
-    Box,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    styled,
-    Alert
-} from '@mui/material';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
-import { useLoading } from '../../contexts/LoadingContext';
-import { useFeedback } from '../common/Feedback';
-import { useAuth } from '../../contexts/AuthContext';
+import { 
+  Box, Typography, Button, TableContainer, Table, TableHead, TableBody, 
+  TableRow, TableCell, Paper, Chip, Dialog, DialogTitle, DialogContent, 
+  DialogActions, CircularProgress, IconButton
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { api } from '../../services/api';
+import { useAuth } from '../../contexts/auth';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 // Componentes estilizados
 const PageContainer = styled(Box)({
-    padding: '20px',
+  padding: '20px',
 });
 
 const PageHeader = styled(Box)({
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '20px',
 });
 
 const PageTitle = styled(Typography)({
-    color: '#0F1140',
-    fontSize: '24px',
-    fontWeight: 'bold',
+  color: '#0F1140',
+  fontSize: '24px',
+  fontWeight: 'bold',
 });
 
 const NewButton = styled(Button)({
-    backgroundColor: '#0F1140',
-    color: 'white',
-    borderRadius: '8px',
-    padding: '10px 20px',
-    '&:hover': {
-        backgroundColor: '#1a1b4b',
-    },
+  backgroundColor: '#0F1140',
+  color: 'white',
+  borderRadius: '8px',
+  padding: '10px 20px',
+  '&:hover': {
+    backgroundColor: '#1a1b4b',
+  },
 });
 
 const StyledTableContainer = styled(TableContainer)({
-    boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
-    borderRadius: '10px',
-    overflow: 'hidden',
+  boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
+  borderRadius: '10px',
+  overflow: 'hidden',
 });
 
 const TableHeader = styled(TableHead)({
-    backgroundColor: '#f5f5f5',
+  backgroundColor: '#f5f5f5',
 });
 
 const TableHeaderCell = styled(TableCell)({
-    fontWeight: 'bold',
-    color: '#0F1140',
+  fontWeight: 'bold',
+  color: '#0F1140',
 });
 
 const ActionButton = styled(Button)(({ color }) => ({
-    margin: '0 5px',
-    borderRadius: '4px',
-    padding: '6px 12px',
-    textTransform: 'none',
-    backgroundColor: color === 'primary' ? '#0F1140' :
-        color === 'error' ? '#f44336' :
-            color === 'success' ? '#4caf50' : '#2196f3',
-    color: 'white',
-    '&:hover': {
-        backgroundColor: color === 'primary' ? '#1a1b4b' :
-            color === 'error' ? '#d32f2f' :
-                color === 'success' ? '#388e3c' : '#1976d2',
-    },
+  margin: '0 5px',
+  borderRadius: '4px',
+  padding: '6px 12px',
+  textTransform: 'none',
+  backgroundColor: color === 'primary' ? '#0F1140' :
+    color === 'error' ? '#f44336' :
+      color === 'success' ? '#4caf50' : '#2196f3',
+  color: 'white',
+  '&:hover': {
+    backgroundColor: color === 'primary' ? '#1a1b4b' :
+      color === 'error' ? '#d32f2f' :
+        color === 'success' ? '#388e3c' : '#1976d2',
+  },
 }));
 
-const StatusChip = styled(Chip)(({ sx }) => ({
-    color: 'white',
+const StatusChip = styled(Chip)(({ status }) => {
+  // Define a cor com base no status
+  const getStatusColor = () => {
+    switch (status) {
+      case 'PENDENTE':
+        return { bg: '#FFA726', color: '#fff' };
+      case 'EM_USO':
+        return { bg: '#42A5F5', color: '#fff' };
+      case 'AGUARDANDO_CONFIRMACAO':
+        return { bg: '#EC407A', color: '#fff' };
+      case 'UTILIZADO':
+        return { bg: '#66BB6A', color: '#fff' };
+      default:
+        return { bg: '#9E9E9E', color: '#fff' };
+    }
+  };
+
+  const colors = getStatusColor();
+
+  return {
+    backgroundColor: colors.bg,
+    color: colors.color,
     fontWeight: 'bold',
-    ...sx
-}));
+  };
+});
 
 const ConfirmDialog = styled(Dialog)({
-    '& .MuiPaper-root': {
-        borderRadius: '10px',
-        padding: '10px',
-    },
+  '& .MuiPaper-root': {
+    borderRadius: '10px',
+    padding: '10px',
+  },
 });
 
 const DialogTitleStyled = styled(DialogTitle)({
-    color: '#0F1140',
-    fontWeight: 'bold',
+  color: '#0F1140',
+  fontWeight: 'bold',
 });
 
-const ListaReservas = ({ userType }) => {
-    const navigate = useNavigate();
-    const [reservas, setReservas] = useState([]);
-    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [selectedReserva, setSelectedReserva] = useState(null);
-    const [actionType, setActionType] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const { showLoading, hideLoading } = useLoading();
-    const { showFeedback, FeedbackComponent } = useFeedback();
-    const { auth } = useAuth();
+const EmptyState = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '40px',
+  backgroundColor: '#f9f9f9',
+  borderRadius: '10px',
+  margin: '20px 0',
+});
 
-    // Ref para controlar se já carregamos os dados
-    const initialLoadComplete = useRef(false);
-    // Ref para armazenar o intervalo
-    const intervalRef = useRef(null);
+const EmptyStateText = styled(Typography)({
+  color: '#666',
+  marginTop: '16px',
+  textAlign: 'center',
+});
 
-    // Atualizado para usar useRef e evitar loops infinitos
-    const carregarReservas = useCallback(async () => {
-        if (loading) return;
+const ListaReservas = () => {
+  const navigate = useNavigate();
+  const [reservas, setReservas] = useState([]);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedReserva, setSelectedReserva] = useState(null);
+  const [actionType, setActionType] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState({ show: false, message: '', type: 'info' });
+  const { auth } = useAuth();
 
-        setLoading(true);
-        showLoading('Carregando reservas...');
+  // Ref para o intervalo de atualização
+  const intervalRef = useRef(null);
 
-        try {
-            const endpoint = userType === 'professor' ? '/reservas/professor' : '/reservas';
+  // Função para mostrar feedback
+  const showFeedback = (message, type = 'info') => {
+    setFeedback({ show: true, message, type });
+    setTimeout(() => {
+      setFeedback({ show: false, message: '', type: 'info' });
+    }, 5000);
+  };
 
-            const response = await api.get(endpoint);
+  // Função para carregar reservas
+  const carregarReservas = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/reservas');
+      setReservas(response.data);
+      setError(null);
+    } catch (error) {
+      console.error('Erro ao carregar reservas:', error);
+      setError('Não foi possível carregar as reservas. Tente novamente mais tarde.');
+      showFeedback('Erro ao carregar reservas', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-            const reservasOrdenadas = response.data
-                .filter(r => r.status !== 'CANCELADO')
-                .sort((a, b) => {
-                    const dataA = new Date(a.data);
-                    const dataB = new Date(b.data);
-                    if (dataA.getTime() !== dataB.getTime()) {
-                        return dataA - dataB;
-                    }
-                    return a.horaInicial.localeCompare(b.horaInicial);
-                });
+  // Carregar reservas ao montar o componente e configurar intervalo
+  useEffect(() => {
+    carregarReservas();
 
-            setReservas(reservasOrdenadas);
-        } catch (error) {
-            console.error('Erro ao carregar reservas:', error);
-            setError('Erro ao carregar lista de reservas');
-        } finally {
-            setLoading(false);
-            hideLoading();
-            initialLoadComplete.current = true;
-        }
-    }, [userType, showLoading, hideLoading, loading]);
+    // Atualizar a cada 2 minutos
+    intervalRef.current = setInterval(() => {
+      carregarReservas();
+    }, 2 * 60 * 1000);
 
-    useEffect(() => {
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-        }
-
-        if (!initialLoadComplete.current) {
-            carregarReservas();
-        }
-
-        intervalRef.current = setInterval(() => {
-            carregarReservas();
-        }, 60000);
-
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, [carregarReservas]);
-
-    const handleNovaReserva = () => {
-        navigate('/reservas/nova');
+    // Limpar intervalo ao desmontar
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
+  }, [carregarReservas]);
 
-    const editarReserva = async (id) => {
-        try {
-            setLoading(true);
-            
-            // Verificar se a reserva pode ser alterada
-            const response = await api.get(`/reservas/${id}/pode-alterar`);
-            
-            if (response.data === true) {
-                // Navegar para a página de edição
-                navigate(`/reservas/editar/${id}`);
-            } else {
-                showFeedback('Esta reserva não pode mais ser alterada', 'warning');
-            }
-        } catch (error) {
-            console.error('Erro ao verificar permissão de alteração:', error);
-            showFeedback('Erro ao verificar permissões', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
+  // Função para criar nova reserva
+  const handleNovaReserva = () => {
+    navigate('/reservas/nova');
+  };
 
-    const handleOpenConfirmDialog = (reserva, action) => {
-        setSelectedReserva(reserva);
-        setActionType(action);
-        setConfirmDialogOpen(true);
-    };
+  // Função para navegar para a página de edição (apenas admin)
+  const editarReserva = (id) => {
+    navigate(`/reservas/editar/${id}`);
+  };
 
-    const handleCloseConfirmDialog = () => {
-        setConfirmDialogOpen(false);
-        setSelectedReserva(null);
-    };
+  // Abrir diálogo de confirmação
+  const handleOpenConfirmDialog = (reserva, action) => {
+    setSelectedReserva(reserva);
+    setActionType(action);
+    setConfirmDialogOpen(true);
+  };
 
-    const handleConfirmAction = async () => {
-        if (!selectedReserva) return;
+  // Fechar diálogo de confirmação
+  const handleCloseConfirmDialog = () => {
+    setConfirmDialogOpen(false);
+    setSelectedReserva(null);
+    setActionType('');
+  };
 
-        showLoading(actionType === 'cancelar' ? 'Cancelando reserva...' : 'Confirmando utilização...');
+  // Executar ação confirmada
+  const handleConfirmAction = async () => {
+    if (!selectedReserva) return;
 
-        try {
-            if (actionType === 'cancelar') {
-                await api.delete(`/reservas/${selectedReserva.id}`);
-                setReservas(prev => prev.filter(r => r.id !== selectedReserva.id));
-                showFeedback('Reserva cancelada com sucesso', 'success');
-            } else if (actionType === 'confirmar') {
-                await api.patch(`/reservas/${selectedReserva.id}/confirmar`);
-                setReservas(prev => prev.map(r => {
-                    if (r.id === selectedReserva.id) {
-                        return { ...r, status: 'UTILIZADO', utilizado: true };
-                    }
-                    return r;
-                }));
-                showFeedback('Utilização confirmada com sucesso', 'success');
-            }
-        } catch (error) {
-            console.error(`Erro ao ${actionType} reserva:`, error);
+    try {
+      setLoadingAction(true);
 
-            if (error.response?.status === 400) {
-                showFeedback(error.response.data.message || `Não foi possível ${actionType} a reserva`, 'error');
-            } else {
-                showFeedback(`Erro ao ${actionType} reserva`, 'error');
-            }
-        } finally {
-            hideLoading();
-            handleCloseConfirmDialog();
-        }
-    };
+      if (actionType === 'cancelar') {
+        await api.delete(`/api/reservas/${selectedReserva.id}`);
+        showFeedback('Reserva cancelada com sucesso', 'success');
+      } else if (actionType === 'confirmar') {
+        await api.post(`/api/reservas/${selectedReserva.id}/confirmar`);
+        showFeedback('Utilização confirmada com sucesso', 'success');
+      }
 
-    const getReservaStatus = (reserva) => {
-        switch (reserva.status) {
-            case 'PENDENTE':
-                return "Pendente";
-            case 'EM_USO':
-                return "Em Uso";
-            case 'AGUARDANDO_CONFIRMACAO':
-                return "Aguardando Confirmação";
-            case 'UTILIZADO':
-                return "Utilizado";
-            case 'CANCELADO':
-                return "";
-            default:
-                return "Pendente";
-        }
-    };
+      // Recarregar dados
+      carregarReservas();
+    } catch (error) {
+      console.error(`Erro ao ${actionType} reserva:`, error);
+      showFeedback(`Erro ao ${actionType} reserva. Tente novamente.`, 'error');
+    } finally {
+      setLoadingAction(false);
+      handleCloseConfirmDialog();
+    }
+  };
 
-    const podeAlterar = async (reserva) => {
-        if (!auth.isAdmin) return false;
+  // Traduzir status para exibição
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'PENDENTE': return 'Pendente';
+      case 'EM_USO': return 'Em uso';
+      case 'AGUARDANDO_CONFIRMACAO': return 'Aguardando confirmação';
+      case 'UTILIZADO': return 'Utilizado';
+      default: return status;
+    }
+  };
 
-        try {
-            const response = await api.get(`/reservas/${reserva.id}/pode-alterar`);
-            return response.data === true;
-        } catch (error) {
-            console.error('Erro ao verificar permissão de alteração:', error);
-            return false;
-        }
-    };
+  // Renderização dos botões de ação conforme status e permissões
+  const renderBotoesAcao = (reserva) => {
+    const { status } = reserva;
 
-    const podeCancelar = async (reserva) => {
-        try {
-            const response = await api.get(`/reservas/${reserva.id}/pode-cancelar`);
-            return response.data === true;
-        } catch (error) {
-            console.error('Erro ao verificar permissão de cancelamento:', error);
-            return false;
-        }
-    };
+    // Se o status for UTILIZADO, não mostrar botões
+    if (status === 'UTILIZADO') {
+      return null;
+    }
 
-    const podeConfirmarUtilizacao = (reserva) => {
-        return reserva.status === 'EM_USO' || reserva.status === 'AGUARDANDO_CONFIRMACAO';
-    };
+    // Status "Em Uso" ou "Aguardando Confirmação" - apenas botão de confirmar utilização
+    if (status === 'EM_USO' || status === 'AGUARDANDO_CONFIRMACAO') {
+      return (
+        <ActionButton
+          color="success"
+          onClick={() => handleOpenConfirmDialog(reserva, 'confirmar')}
+          disabled={loadingAction}
+        >
+          Confirmar Utilização
+        </ActionButton>
+      );
+    }
 
-    const renderBotoesAcao = (reserva) => {
-        const statusVisual = getReservaStatus(reserva);
-        
-        // Status "Utilizado" - sem ações
-        if (statusVisual === "Utilizado") {
-            return null;
-        }
-        
-        // Status "Em Uso" ou "Aguardando Confirmação" - apenas botão de confirmar utilização
-        if (statusVisual === "Em Uso" || statusVisual === "Aguardando Confirmação") {
-            return (
-                <ActionButton
-                    color="primary"
-                    onClick={() => handleOpenConfirmDialog(reserva, 'confirmar')}
-                    disabled={loading}
-                >
-                    Confirmar Utilização
-                </ActionButton>
-            );
-        }
-        
-        // Status "Pendente" - botões de Alterar (admin) e Cancelar
-        if (statusVisual === "Pendente") {
-            return (
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    {auth.isAdmin && (
-                        <ActionButton
-                            color="secondary"
-                            onClick={() => editarReserva(reserva.id)}
-                            disabled={loading}
-                        >
-                            Alterar
-                        </ActionButton>
-                    )}
-                    
-                    <ActionButton
-                        color="error"
-                        onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
-                        disabled={loading}
-                    >
-                        Cancelar
-                    </ActionButton>
-                </Box>
-            );
-        }
-        
-        return null;
-    };
+    // Status "Pendente" - botões de Alterar e Cancelar (apenas para admin)
+    if (status === 'PENDENTE' && auth.isAdmin) {
+      return (
+        <>
+          <ActionButton
+            color="secondary"
+            onClick={() => editarReserva(reserva.id)}
+            disabled={loadingAction}
+          >
+            Alterar
+          </ActionButton>
+          
+          <ActionButton
+            color="error"
+            onClick={() => handleOpenConfirmDialog(reserva, 'cancelar')}
+            disabled={loadingAction}
+          >
+            Cancelar
+          </ActionButton>
+        </>
+      );
+    }
 
-    const formatarData = (dataString) => {
-        if (!dataString) return '';
-        const data = new Date(dataString);
-        return data.toLocaleDateString('pt-BR');
-    };
+    return null;
+  };
 
-    const formatarHora = (hora) => {
-        return hora ? hora.substring(0, 5) : '';
-    };
+  // Formatar data para exibição
+  const formatarData = (dataString) => {
+    if (!dataString) return '';
+    
+    const data = new Date(dataString);
+    return data.toLocaleDateString('pt-BR');
+  };
 
-    return (
-        <PageContainer>
-            <PageHeader>
-                <PageTitle>Gerenciar Reservas</PageTitle>
-                <NewButton onClick={handleNovaReserva}>
-                    Nova Reserva
-                </NewButton>
-            </PageHeader>
+  // Formatar hora para exibição
+  const formatarHora = (horaString) => {
+    if (!horaString) return '';
+    return horaString.substring(0, 5); // Formato HH:MM
+  };
 
-            {error && (
-                <Alert
-                    severity="error"
-                    sx={{ mb: 2 }}
-                    onClose={() => setError(null)}
-                >
-                    {error}
-                </Alert>
-            )}
+  // Componente de feedback
+  const FeedbackAlert = ({ message, type }) => (
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 20,
+        right: 20,
+        padding: '10px 20px',
+        borderRadius: '4px',
+        backgroundColor: type === 'error' ? '#f44336' : 
+                        type === 'success' ? '#4caf50' : '#2196f3',
+        color: 'white',
+        boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.2)',
+        zIndex: 9999,
+      }}
+    >
+      <Typography>{message}</Typography>
+    </Box>
+  );
 
-            <StyledTableContainer component={Paper}>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell>Espaço</TableHeaderCell>
-                            <TableHeaderCell>Professor</TableHeaderCell>
-                            <TableHeaderCell>Data</TableHeaderCell>
-                            <TableHeaderCell>Horário</TableHeaderCell>
-                            <TableHeaderCell>Status</TableHeaderCell>
-                            <TableHeaderCell>Ações</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {reservas.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">
-                                    {loading ? 'Carregando...' : 'Nenhuma reserva encontrada'}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            reservas.map((reserva) => {
-                                if (reserva.status === 'CANCELADO') return null;
+  return (
+    <PageContainer>
+      <PageHeader>
+        <PageTitle variant="h4">Gerenciar Reservas</PageTitle>
+        <Box display="flex" alignItems="center">
+          <IconButton 
+            onClick={carregarReservas} 
+            sx={{ mr: 2 }}
+            disabled={loading}
+          >
+            <RefreshIcon />
+          </IconButton>
+          <NewButton 
+            variant="contained" 
+            onClick={handleNovaReserva}
+            disabled={loading}
+          >
+            Nova Reserva
+          </NewButton>
+        </Box>
+      </PageHeader>
 
-                                const statusVisual = getReservaStatus(reserva);
+      {loading ? (
+        <Box display="flex" justifyContent="center" my={4}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Box
+          sx={{
+            backgroundColor: '#ffebee',
+            color: '#c62828',
+            p: 2,
+            borderRadius: 1,
+            my: 2,
+          }}
+        >
+          <Typography>{error}</Typography>
+        </Box>
+      ) : reservas.length === 0 ? (
+        <EmptyState>
+          <EmptyStateText variant="h6">
+            Nenhuma reserva encontrada
+          </EmptyStateText>
+          <EmptyStateText>
+            Clique em "Nova Reserva" para criar uma reserva de espaço acadêmico
+          </EmptyStateText>
+        </EmptyState>
+      ) : (
+        <StyledTableContainer component={Paper}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Espaço</TableHeaderCell>
+                <TableHeaderCell>Professor</TableHeaderCell>
+                <TableHeaderCell>Data</TableHeaderCell>
+                <TableHeaderCell>Horário</TableHeaderCell>
+                <TableHeaderCell>Finalidade</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Ações</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reservas.map((reserva) => (
+                <TableRow key={reserva.id}>
+                  <TableCell>{reserva.espacoAcademico.nome}</TableCell>
+                  <TableCell>{reserva.professor.nome}</TableCell>
+                  <TableCell>{formatarData(reserva.data)}</TableCell>
+                  <TableCell>
+                    {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
+                  </TableCell>
+                  <TableCell>
+                    {reserva.finalidade ? 
+                      (reserva.finalidade.length > 30 ? 
+                        `${reserva.finalidade.substring(0, 30)}...` : 
+                        reserva.finalidade) : 
+                      '-'}
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip 
+                      label={getStatusLabel(reserva.status)} 
+                      status={reserva.status}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex">
+                      {renderBotoesAcao(reserva)}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </StyledTableContainer>
+      )}
 
-                                return (
-                                    <TableRow key={reserva.id}>
-                                        <TableCell>{reserva.espacoAcademico.nome}</TableCell>
-                                        <TableCell>{reserva.professor.nome}</TableCell>
-                                        <TableCell>{formatarData(reserva.data)}</TableCell>
-                                        <TableCell>
-                                            {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatusChip
-                                                label={statusVisual}
-                                                sx={{
-                                                    backgroundColor:
-                                                        statusVisual === "Utilizado" ? "#4caf50" :
-                                                        statusVisual === "Em Uso" ? "#2196f3" :
-                                                        statusVisual === "Aguardando Confirmação" ? "#ff9800" :
-                                                        "#9c27b0"
-                                                }}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            {renderBotoesAcao(reserva)}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </StyledTableContainer>
+      {/* Diálogo de confirmação */}
+      <ConfirmDialog open={confirmDialogOpen} onClose={handleCloseConfirmDialog}>
+        <DialogTitleStyled>
+          {actionType === 'cancelar' ? 'Cancelar Reserva' : 'Confirmar Utilização'}
+        </DialogTitleStyled>
+        <DialogContent>
+          <Typography>
+            {actionType === 'cancelar' 
+              ? 'Tem certeza que deseja cancelar esta reserva?' 
+              : 'Confirmar a utilização deste espaço acadêmico?'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseConfirmDialog} disabled={loadingAction}>
+            Não
+          </Button>
+          <Button 
+            onClick={handleConfirmAction} 
+            color="primary" 
+            variant="contained"
+            disabled={loadingAction}
+          >
+            {loadingAction ? <CircularProgress size={20} /> : 'Sim'}
+          </Button>
+        </DialogActions>
+      </ConfirmDialog>
 
-            <ConfirmDialog
-                open={confirmDialogOpen}
-                onClose={handleCloseConfirmDialog}
-            >
-                <DialogTitleStyled>
-                    {actionType === 'cancelar' ? 'Cancelar Reserva' : 'Confirmar Utilização'}
-                </DialogTitleStyled>
-                <DialogContent>
-                    <Typography>
-                        {actionType === 'cancelar'
-                            ? 'Tem certeza que deseja cancelar esta reserva? Esta ação não pode ser desfeita.'
-                            : 'Tem certeza que deseja confirmar a utilização deste espaço?'}
-                    </Typography>
-                    {selectedReserva && (
-                        <Box sx={{ mt: 2 }}>
-                            <Typography><strong>Espaço:</strong> {selectedReserva.espacoAcademico.nome}</Typography>
-                            <Typography><strong>Data:</strong> {formatarData(selectedReserva.data)}</Typography>
-                            <Typography>
-                                <strong>Horário:</strong> {formatarHora(selectedReserva.horaInicial)} - {formatarHora(selectedReserva.horaFinal)}
-                            </Typography>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        onClick={handleCloseConfirmDialog}
-                        disabled={loading}
-                    >
-                        Cancelar
-                    </Button>
-                    <Button
-                        onClick={handleConfirmAction}
-                        color={actionType === 'cancelar' ? 'error' : 'primary'}
-                        variant="contained"
-                        disabled={loading}
-                    >
-                        Confirmar
-                    </Button>
-                </DialogActions>
-            </ConfirmDialog>
-            <FeedbackComponent />
-        </PageContainer>
-    );
+      {/* Componente de feedback */}
+      {feedback.show && (
+        <FeedbackAlert message={feedback.message} type={feedback.type} />
+      )}
+    </PageContainer>
+  );
 };
 
 export default ListaReservas;
