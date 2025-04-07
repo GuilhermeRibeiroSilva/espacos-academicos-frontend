@@ -3,14 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Box, Typography, TextField, Button, MenuItem, Select, 
   FormControl, InputLabel, CircularProgress, Grid, Alert,
-  Paper
+  Paper, FormHelperText, AlertTitle
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import { styled } from '@mui/material/styles';
-import { api } from '../../services/api';
-import { useAuth } from '../../contexts/auth';
+import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Componentes estilizados
 const FormContainer = styled(Paper)(({ theme }) => ({
@@ -73,13 +73,13 @@ const FormReserva = () => {
     data: null,
     horaInicial: '',
     horaFinal: '',
-    finalidade: '',
   });
 
   // Estados para as listas
   const [espacos, setEspacos] = useState([]);
   const [professores, setProfessores] = useState([]);
   const [horariosDisponiveis, setHorariosDisponiveis] = useState([]);
+  const [horariosOcupados, setHorariosOcupados] = useState([]);
 
   // Estados para feedback
   const [loading, setLoading] = useState(false);
@@ -88,6 +88,20 @@ const FormReserva = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState(false);
 
+  // Função para gerar horários disponíveis localmente (de 10 em 10 minutos)
+  const gerarHorariosDisponiveis = () => {
+    const horariosTemp = [];
+    // Horários de 7h às 23h com intervalos de 10 minutos
+    for (let hora = 7; hora <= 23; hora++) {
+      for (let minuto = 0; minuto < 60; minuto += 10) {
+        horariosTemp.push(
+          `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}:00`
+        );
+      }
+    }
+    return horariosTemp;
+  };
+
   // Carregar dados iniciais
   useEffect(() => {
     const carregarDadosIniciais = async () => {
@@ -95,8 +109,8 @@ const FormReserva = () => {
       try {
         // Carregar listas de espaços e professores
         const [espacosRes, professoresRes] = await Promise.all([
-          api.get('/api/espacos'),
-          api.get('/api/professores')
+          api.get('/espacos'),
+          api.get('/professores')
         ]);
 
         setEspacos(espacosRes.data);
@@ -111,7 +125,7 @@ const FormReserva = () => {
             return;
           }
 
-          const reservaRes = await api.get(`/api/reservas/${id}`);
+          const reservaRes = await api.get(`/reservas/${id}`);
           const reserva = reservaRes.data;
 
           // Verificar se é pendente (só pode editar reservas pendentes)
@@ -121,8 +135,11 @@ const FormReserva = () => {
             return;
           }
 
-          // Formatar data
-          const dataReserva = new Date(reserva.data);
+          // Formatar data corretamente para evitar problemas de timezone
+          // Convertemos explicitamente a data para um objeto Date com a hora do meio-dia para evitar erros de timezone
+          const dataString = reserva.data;
+          const [ano, mes, dia] = dataString.split('-').map(Number);
+          const dataReserva = new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0));
 
           // Preencher formulário
           setFormData({
@@ -131,7 +148,6 @@ const FormReserva = () => {
             data: dataReserva,
             horaInicial: reserva.horaInicial,
             horaFinal: reserva.horaFinal,
-            finalidade: reserva.finalidade || '',
           });
 
           // Carregar horários disponíveis
@@ -179,18 +195,60 @@ const FormReserva = () => {
       // Formatar data para API
       const dataFormatada = formatarDataParaAPI(data);
       
-      const response = await api.get('/api/horarios-disponiveis', {
-        params: {
-          espacoId,
-          data: dataFormatada,
-          reservaId,
-        }
+      console.log('Parâmetros enviados para /horarios-disponiveis:', {
+        espacoId,
+        data: dataFormatada,
+        reservaId
       });
       
-      setHorariosDisponiveis(response.data);
+      try {
+        // Primeiro, vamos buscar as reservas existentes para este espaço na data
+        const reservasResponse = await api.get('/reservas/buscar-por-espaco-data', {
+          params: {
+            espacoId,
+            data: dataFormatada
+          }
+        });
+        
+        // Extrair os horários ocupados, excluindo as reservas canceladas
+        const ocupados = reservasResponse.data
+          .filter(reserva => reserva.status !== 'CANCELADO') // Ignorar reservas canceladas
+          .map(reserva => ({
+            inicio: reserva.horaInicial,
+            fim: reserva.horaFinal,
+            id: reserva.id
+          }));
+        
+        setHorariosOcupados(ocupados);
+        
+        // Agora, buscar os horários disponíveis
+        const response = await api.get('/horarios-disponiveis', {
+          params: {
+            espacoId,
+            data: dataFormatada,
+            reservaId,
+          }
+        });
+        
+        setHorariosDisponiveis(response.data);
+      } catch (apiError) {
+        console.error('Erro ao acessar API de horários disponíveis, usando solução alternativa', apiError);
+        
+        // Gerar horários de 7h às 23h com intervalos de 10 minutos
+        const horariosTemp = [];
+        for (let hora = 7; hora <= 23; hora++) {
+          for (let minuto = 0; minuto < 60; minuto += 10) {
+            horariosTemp.push(
+              `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}:00`
+            );
+          }
+        }
+        setHorariosDisponiveis(horariosTemp);
+      }
     } catch (error) {
       console.error('Erro ao carregar horários disponíveis:', error);
-      setError('Erro ao verificar disponibilidade de horários');
+      console.error('Detalhes do erro:', error.response?.data || 'Sem detalhes adicionais');
+      setError('Erro ao verificar disponibilidade de horários. Por favor, tente novamente.');
     }
   };
 
@@ -207,15 +265,25 @@ const FormReserva = () => {
 
   // Handler para mudança de data
   const handleDateChange = (date) => {
-    setFormData(prev => ({ ...prev, data: date }));
-    
-    // Limpar horários selecionados quando a data muda
-    setFormData(prev => ({ 
-      ...prev, 
-      data: date,
-      horaInicial: '',
-      horaFinal: ''
-    }));
+    if (date) {
+      // Normalizar a data para evitar problemas de timezone
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0); // Meio-dia para evitar problemas de timezone
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        data: normalizedDate,
+        horaInicial: '',
+        horaFinal: ''
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        data: null,
+        horaInicial: '',
+        horaFinal: ''
+      }));
+    }
     
     // Limpar erro do campo data
     if (fieldErrors.data) {
@@ -227,9 +295,16 @@ const FormReserva = () => {
   const formatarDataParaAPI = (data) => {
     if (!data) return null;
     
-    const year = data.getFullYear();
-    const month = String(data.getMonth() + 1).padStart(2, '0');
-    const day = String(data.getDate()).padStart(2, '0');
+    // Criar uma nova data usando a data selecionada sem modificar o timezone
+    const dataLocal = new Date(data);
+    
+    // Adicionar timezone offset para compensar qualquer ajuste automático
+    const offset = dataLocal.getTimezoneOffset();
+    const dataAjustada = new Date(dataLocal.getTime() + (offset * 60 * 1000));
+    
+    const year = dataAjustada.getFullYear();
+    const month = String(dataAjustada.getMonth() + 1).padStart(2, '0');
+    const day = String(dataAjustada.getDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
   };
@@ -253,8 +328,21 @@ const FormReserva = () => {
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
       
-      if (formData.data < hoje) {
+      const dataSelecionada = new Date(formData.data);
+      dataSelecionada.setHours(0, 0, 0, 0);
+      
+      if (dataSelecionada < hoje) {
         errors.data = 'Selecione uma data futura';
+      } else if (dataSelecionada.getTime() === hoje.getTime()) {
+        // Se for o dia atual, verificar se o horário já passou
+        const horaAtual = new Date();
+        const [horaInicialH, horaInicialM] = formData.horaInicial.split(':').map(Number);
+        const horaInicialDate = new Date();
+        horaInicialDate.setHours(horaInicialH, horaInicialM, 0);
+        
+        if (horaInicialDate <= horaAtual) {
+          errors.horaInicial = 'Não é possível agendar para um horário que já passou';
+        }
       }
     }
     
@@ -288,6 +376,17 @@ const FormReserva = () => {
     setError(null);
     
     try {
+      // Verificar se a hora inicial é menor que a hora final
+      const [horaInicialH, horaInicialM] = formData.horaInicial.split(':').map(Number);
+      const [horaFinalH, horaFinalM] = formData.horaFinal.split(':').map(Number);
+      
+      if (horaInicialH > horaFinalH || (horaInicialH === horaFinalH && horaInicialM >= horaFinalM)) {
+        setError('A hora inicial deve ser menor que a hora final');
+        setFieldErrors({...fieldErrors, horaFinal: 'A hora final deve ser maior que a hora inicial'});
+        setLoadingSubmit(false);
+        return;
+      }
+      
       // Preparar dados para envio
       const dadosParaEnvio = {
         espacoAcademicoId: formData.espacoAcademicoId,
@@ -295,14 +394,13 @@ const FormReserva = () => {
         data: formatarDataParaAPI(formData.data),
         horaInicial: formData.horaInicial,
         horaFinal: formData.horaFinal,
-        finalidade: formData.finalidade
       };
       
       // Enviar para API
       if (isEdicao) {
-        await api.put(`/api/reservas/${id}`, dadosParaEnvio);
+        await api.put(`/reservas/${id}`, dadosParaEnvio);
       } else {
-        await api.post('/api/reservas', dadosParaEnvio);
+        await api.post('/reservas', dadosParaEnvio);
       }
       
       // Mostrar mensagem de sucesso
@@ -315,7 +413,18 @@ const FormReserva = () => {
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);
       
-      if (error.response && error.response.data && error.response.data.message) {
+      // Verificar se é erro de conflito de reserva
+      if (
+        error.response && 
+        error.response.data && 
+        (
+          error.response.data.message?.toLowerCase().includes('conflito') ||
+          error.response.data.message?.toLowerCase().includes('já existe uma reserva') ||
+          error.response.status === 409 // Conflict HTTP status
+        )
+      ) {
+        setError('Já existe uma reserva para este local neste horário. Por favor, escolha outro horário ou local.');
+      } else if (error.response && error.response.data && error.response.data.message) {
         setError(error.response.data.message);
       } else {
         setError('Erro ao salvar reserva. Tente novamente mais tarde.');
@@ -323,6 +432,30 @@ const FormReserva = () => {
     } finally {
       setLoadingSubmit(false);
     }
+  };
+
+  // Função para verificar se um horário está em um intervalo ocupado
+  const verificarHorarioOcupado = (horario) => {
+    if (!horariosOcupados.length) return false;
+    
+    // Converter o horário para minutos para facilitar comparação
+    const [hora, minuto] = horario.split(':').map(Number);
+    const horarioEmMinutos = hora * 60 + minuto;
+    
+    // Verificar se o horário está em algum intervalo ocupado ou é exatamente o horário final
+    return horariosOcupados.some(ocupado => {
+      // Pular a própria reserva em caso de edição
+      if (isEdicao && ocupado.id === parseInt(id)) return false;
+      
+      const [horaInicio, minutoInicio] = ocupado.inicio.split(':').map(Number);
+      const [horaFim, minutoFim] = ocupado.fim.split(':').map(Number);
+      
+      const inicioEmMinutos = horaInicio * 60 + minutoInicio;
+      const fimEmMinutos = horaFim * 60 + minutoFim;
+      
+      // Agora bloqueamos inclusive o horário final da reserva
+      return (horarioEmMinutos >= inicioEmMinutos && horarioEmMinutos <= fimEmMinutos);
+    });
   };
 
   // Componente de horários disponíveis
@@ -334,25 +467,73 @@ const FormReserva = () => {
     horarios, 
     error, 
     helperText 
-  }) => (
-    <FormControl fullWidth error={!!error} sx={{ mb: 2 }}>
-      <FormLabel>{label}</FormLabel>
-      <StyledSelect
-        name={name}
-        value={value}
-        onChange={onChange}
-        displayEmpty
-      >
-        <MenuItem value="" disabled>Selecione um horário</MenuItem>
-        {horarios.map((horario) => (
-          <MenuItem key={horario} value={horario}>
-            {horario.substring(0, 5)}
-          </MenuItem>
-        ))}
-      </StyledSelect>
-      {error && <Typography color="error" variant="caption">{helperText}</Typography>}
-    </FormControl>
-  );
+  }) => {
+    const isHoraFinal = name === 'horaFinal';
+    
+    const renderMenuItem = (horario) => {
+      const ocupado = verificarHorarioOcupado(horario);
+      
+      // Lógica para horário final - deve ser maior que o inicial
+      const horarioInvalido = isHoraFinal && formData.horaInicial && horario <= formData.horaInicial;
+      
+      // Para horário final, não se deve poder selecionar um horário que já está ocupado
+      // mesmo que seja o horário final exato de outra reserva
+      const disabled = ocupado || horarioInvalido;
+      
+      // Adicionar informação de hoje para verificar se o horário já passou
+      const hoje = new Date();
+      const dataHoje = hoje.toISOString().split('T')[0];
+      const dataReserva = formData.data ? formatarDataParaAPI(formData.data) : null;
+      
+      // Verificar se o horário já passou hoje
+      const horarioPassou = dataReserva === dataHoje && (() => {
+        const [hora, minuto] = horario.split(':').map(Number);
+        const horarioDate = new Date();
+        horarioDate.setHours(hora, minuto, 0);
+        return horarioDate <= hoje;
+      })();
+      
+      // Desabilitar também se o horário já passou
+      const finalDisabled = disabled || horarioPassou;
+      
+      return (
+        <MenuItem 
+          key={horario} 
+          value={horario}
+          disabled={finalDisabled}
+          sx={{
+            color: ocupado ? 'error.main' : (horarioInvalido ? 'text.disabled' : horarioPassou ? 'text.disabled' : 'inherit'),
+            '&.Mui-disabled': {
+              opacity: 0.6,
+              textDecoration: ocupado ? 'line-through' : 'none',
+              fontStyle: 'italic'
+            }
+          }}
+        >
+          {horario.substring(0, 5)}
+          {ocupado && ' (Ocupado)'}
+          {!ocupado && horarioInvalido && ' (Anterior à hora inicial)'}
+          {!ocupado && !horarioInvalido && horarioPassou && ' (Horário passado)'}
+        </MenuItem>
+      );
+    };
+
+    return (
+      <FormControl fullWidth error={!!error} sx={{ mb: 2 }}>
+        <FormLabel>{label}</FormLabel>
+        <StyledSelect
+          name={name}
+          value={value}
+          onChange={onChange}
+          displayEmpty
+        >
+          <MenuItem value="" disabled>Selecione um horário</MenuItem>
+          {horarios.map(renderMenuItem)}
+        </StyledSelect>
+        {error && <Typography color="error" variant="caption">{helperText}</Typography>}
+      </FormControl>
+    );
+  };
 
   // Se estiver carregando, mostrar indicador
   if (loading) {
@@ -449,6 +630,13 @@ const FormReserva = () => {
                 }}
               />
             </LocalizationProvider>
+            {horariosOcupados.length > 0 && (
+              <Alert severity="info" sx={{ mt: 2, mb: 1 }}>
+                <AlertTitle>Atenção</AlertTitle>
+                Existem {horariosOcupados.length} reserva(s) para este espaço nesta data.
+                Os horários ocupados estão destacados e não podem ser selecionados.
+              </Alert>
+            )}
           </Grid>
           
           <Grid item xs={12} md={6}>
@@ -476,18 +664,6 @@ const FormReserva = () => {
               horarios={horariosDisponiveis}
               error={!!fieldErrors.horaFinal}
               helperText={fieldErrors.horaFinal}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <FormLabel>Finalidade (opcional)</FormLabel>
-            <StyledField
-              name="finalidade"
-              value={formData.finalidade}
-              onChange={handleChange}
-              multiline
-              rows={3}
-              placeholder="Descreva a finalidade da reserva"
             />
           </Grid>
           

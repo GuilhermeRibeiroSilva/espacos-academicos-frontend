@@ -6,8 +6,8 @@ import {
   DialogActions, CircularProgress, IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { api } from '../../services/api';
-import { useAuth } from '../../contexts/auth';
+import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // Componentes estilizados
@@ -151,8 +151,36 @@ const ListaReservas = () => {
   const carregarReservas = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/reservas');
-      setReservas(response.data);
+      const response = await api.get('/reservas');
+      
+      // Ordenar as reservas por data, horário e status
+      const reservasOrdenadas = response.data.sort((a, b) => {
+        // Comparar por data primeiro
+        const dataA = new Date(a.data);
+        const dataB = new Date(b.data);
+        if (dataA.getTime() !== dataB.getTime()) {
+          return dataA - dataB;
+        }
+        
+        // Se a data for a mesma, comparar por hora inicial
+        if (a.horaInicial !== b.horaInicial) {
+          return a.horaInicial.localeCompare(b.horaInicial);
+        }
+        
+        // Se a hora inicial for a mesma, ordenar por status
+        // Ordem de prioridade: EM_USO, AGUARDANDO_CONFIRMACAO, PENDENTE, UTILIZADO, CANCELADO
+        const ordemStatus = {
+          'EM_USO': 1,
+          'AGUARDANDO_CONFIRMACAO': 2,
+          'PENDENTE': 3,
+          'UTILIZADO': 4,
+          'CANCELADO': 5
+        };
+        
+        return ordemStatus[a.status] - ordemStatus[b.status];
+      });
+      
+      setReservas(reservasOrdenadas);
       setError(null);
     } catch (error) {
       console.error('Erro ao carregar reservas:', error);
@@ -163,7 +191,39 @@ const ListaReservas = () => {
     }
   }, []);
 
-  // Carregar reservas ao montar o componente e configurar intervalo
+  // Função para atualizar o status das reservas em tempo real
+  const atualizarStatusReservasEmTempoReal = () => {
+    const agora = new Date();
+    const dataHoje = agora.toISOString().split('T')[0];
+    const horaAtual = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}:00`;
+    
+    setReservas(prevReservas => 
+      prevReservas.map(reserva => {
+        // Verificar se é de hoje
+        if (reserva.data !== dataHoje) return reserva;
+        
+        // Clone para não mutar o estado diretamente
+        const novaReserva = {...reserva};
+        
+        // Para reservas PENDENTES: se hora inicial <= hora atual < hora final => EM_USO
+        if (reserva.status === 'PENDENTE' && 
+            reserva.horaInicial <= horaAtual && 
+            reserva.horaFinal > horaAtual) {
+          novaReserva.status = 'EM_USO';
+        }
+        
+        // Para reservas EM_USO: se hora atual >= hora final => AGUARDANDO_CONFIRMACAO
+        else if (reserva.status === 'EM_USO' && 
+                 reserva.horaFinal <= horaAtual) {
+          novaReserva.status = 'AGUARDANDO_CONFIRMACAO';
+        }
+        
+        return novaReserva;
+      })
+    );
+  };
+
+  // Carregar reservas ao montar o componente e configurar intervalos
   useEffect(() => {
     carregarReservas();
 
@@ -171,12 +231,18 @@ const ListaReservas = () => {
     intervalRef.current = setInterval(() => {
       carregarReservas();
     }, 2 * 60 * 1000);
+    
+    // Atualizar status em tempo real a cada segundo
+    const statusInterval = setInterval(() => {
+      atualizarStatusReservasEmTempoReal();
+    }, 1000);
 
-    // Limpar intervalo ao desmontar
+    // Limpar intervalos ao desmontar
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      clearInterval(statusInterval);
     };
   }, [carregarReservas]);
 
@@ -212,10 +278,10 @@ const ListaReservas = () => {
       setLoadingAction(true);
 
       if (actionType === 'cancelar') {
-        await api.delete(`/api/reservas/${selectedReserva.id}`);
+        await api.delete(`/reservas/${selectedReserva.id}`);
         showFeedback('Reserva cancelada com sucesso', 'success');
       } else if (actionType === 'confirmar') {
-        await api.post(`/api/reservas/${selectedReserva.id}/confirmar`);
+        await api.post(`/reservas/${selectedReserva.id}/confirmar`);
         showFeedback('Utilização confirmada com sucesso', 'success');
       }
 
@@ -289,12 +355,18 @@ const ListaReservas = () => {
     return null;
   };
 
-  // Formatar data para exibição
+  // Função para formatar a data corretamente, evitando o problema de timezone
   const formatarData = (dataString) => {
     if (!dataString) return '';
     
-    const data = new Date(dataString);
-    return data.toLocaleDateString('pt-BR');
+    // Garantir que a data seja tratada como UTC para evitar conversões automáticas
+    const data = new Date(dataString + 'T12:00:00Z');
+    
+    const dia = String(data.getUTCDate()).padStart(2, '0');
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    const ano = data.getUTCFullYear();
+    
+    return `${dia}/${mes}/${ano}`;
   };
 
   // Formatar hora para exibição
@@ -379,7 +451,6 @@ const ListaReservas = () => {
                 <TableHeaderCell>Professor</TableHeaderCell>
                 <TableHeaderCell>Data</TableHeaderCell>
                 <TableHeaderCell>Horário</TableHeaderCell>
-                <TableHeaderCell>Finalidade</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
                 <TableHeaderCell>Ações</TableHeaderCell>
               </TableRow>
@@ -392,13 +463,6 @@ const ListaReservas = () => {
                   <TableCell>{formatarData(reserva.data)}</TableCell>
                   <TableCell>
                     {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
-                  </TableCell>
-                  <TableCell>
-                    {reserva.finalidade ? 
-                      (reserva.finalidade.length > 30 ? 
-                        `${reserva.finalidade.substring(0, 30)}...` : 
-                        reserva.finalidade) : 
-                      '-'}
                   </TableCell>
                   <TableCell>
                     <StatusChip 
