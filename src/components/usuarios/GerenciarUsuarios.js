@@ -421,7 +421,7 @@ const GerenciarUsuarios = () => {
                   renderValue={(value) => {
                     if (!value) return 'Escolha um professor';
                     const professor = professoresSemUsuario.find(p => p.id === value);
-                    return professor ? `${professor.nome} - ${professor.escola}` : '';
+                    return professor ? `${professor.nome} - ${professor.escola ? professor.escola : 'Sem Escola/Disciplina'}` : '';
                   }}
                 >
                   <MenuItem value="" disabled>Selecione um professor</MenuItem>

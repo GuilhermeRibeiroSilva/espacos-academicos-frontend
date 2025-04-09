@@ -245,6 +245,9 @@ const FormUsuario = () => {
                   ))}
                 </StyledSelect>
               </FormControl>
+              <Typography variant="body2">
+                Escola/Disciplina: {professorSelecionado?.escola || 'Não informada'}
+              </Typography>
             </Grid>
           )}
 

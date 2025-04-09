@@ -121,7 +121,7 @@ const ListaProfessores = () => {
                         <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                             <TableRow>
                                 <TableCell>Nome</TableCell>
-                                <TableCell>Escola</TableCell>
+                                <TableCell>Escola/Disciplina</TableCell>
                                 <TableCell align="center">Ações</TableCell>
                             </TableRow>
                         </TableHead>

@@ -116,6 +116,16 @@ const Dashboard = () => {
     );
   };
   
+  // Função para obter apenas o primeiro e último nome do professor
+  const formatarNomeProfessor = (nomeCompleto) => {
+    if (!nomeCompleto) return '';
+    
+    const nomes = nomeCompleto.trim().split(' ');
+    if (nomes.length === 1) return nomes[0]; // Se for apenas um nome
+    
+    return `${nomes[0]} ${nomes[nomes.length - 1]}`; // Primeiro e último nome
+  };
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -223,7 +233,7 @@ const Dashboard = () => {
                     <Card variant="outlined">
                       <CardContent>
                         <Typography variant="subtitle1" fontWeight="bold">
-                          {reserva.espacoNome || 'Espaço não especificado'}
+                          {reserva.espacoAcademico?.sigla || ''} - {reserva.espacoNome || 'Espaço não especificado'}
                         </Typography>
                         <Typography variant="body2">
                           Horário: {format(new Date(reserva.horaInicio), 'HH:mm')} - 
@@ -231,11 +241,14 @@ const Dashboard = () => {
                         </Typography>
                         {auth.isAdmin && (
                           <Typography variant="body2">
-                            Professor: {reserva.professorNome || 'Não informado'}
+                            Professor: {formatarNomeProfessor(reserva.professorNome) || 'Não informado'}
                           </Typography>
                         )}
                         <Typography variant="body2">
                           Finalidade: {reserva.finalidade || 'Não informada'}
+                        </Typography>
+                        <Typography variant="body2">
+                          Escola/Disciplina: {reserva.professor?.escola || 'Não informada'}
                         </Typography>
                       </CardContent>
                     </Card>

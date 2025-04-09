@@ -238,6 +238,16 @@ const ReservasProfessor = () => {
     }
   };
 
+  // Função para obter apenas o primeiro e último nome do professor
+  const formatarNomeProfessor = (nomeCompleto) => {
+    if (!nomeCompleto) return '';
+    
+    const nomes = nomeCompleto.trim().split(' ');
+    if (nomes.length === 1) return nomes[0]; // Se for apenas um nome
+    
+    return `${nomes[0]} ${nomes[nomes.length - 1]}`; // Primeiro e último nome
+  };
+
   return (
     <div>
       <FeedbackComponent />
@@ -260,7 +270,7 @@ const ReservasProfessor = () => {
             {professor.nome}
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Escola: {professor.escola}
+            Escola/Disciplina: {professor.escola || 'Não informada'}
           </Typography>
         </ProfessorInfoBox>
       )}

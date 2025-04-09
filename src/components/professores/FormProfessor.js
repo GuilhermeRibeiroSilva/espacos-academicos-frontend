@@ -192,13 +192,13 @@ const FormProfessor = () => {
           </Grid>
           
           <Grid item xs={12}>
-            <FormLabel>Escola</FormLabel>
+            <FormLabel>Escola/Disciplina</FormLabel>
             <StyledField
               fullWidth
               name="escola"
               value={formData.escola}
               onChange={handleChange}
-              placeholder="Digite a escola"
+              placeholder="Digite a escola/disciplina"
               required
               error={!!errors.escola}
               helperText={errors.escola}

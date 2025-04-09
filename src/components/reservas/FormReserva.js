@@ -113,7 +113,10 @@ const FormReserva = () => {
           api.get('/professores')
         ]);
 
-        setEspacos(espacosRes.data);
+        // Filtrar apenas espaços disponíveis para novas reservas
+        const espacosDisponiveis = espacosRes.data.filter(espaco => espaco.disponivel);
+        
+        setEspacos(espacosDisponiveis);
         setProfessores(professoresRes.data);
 
         // Se for edição, carregar dados da reserva

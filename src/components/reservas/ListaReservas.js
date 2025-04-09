@@ -387,6 +387,16 @@ const ListaReservas = () => {
     return horaString.substring(0, 5); // Formato HH:MM
   };
 
+  // Função para obter apenas o primeiro e último nome do professor
+  const formatarNomeProfessor = (nomeCompleto) => {
+    if (!nomeCompleto) return '';
+    
+    const nomes = nomeCompleto.trim().split(' ');
+    if (nomes.length === 1) return nomes[0]; // Se for apenas um nome
+    
+    return `${nomes[0]} ${nomes[nomes.length - 1]}`; // Primeiro e último nome
+  };
+
   // Componente de feedback
   const FeedbackAlert = ({ message, type }) => (
     <Box
@@ -470,8 +480,8 @@ const ListaReservas = () => {
             <TableBody>
               {reservas.map((reserva) => (
                 <TableRow key={reserva.id}>
-                  <TableCellStyled>{reserva.espacoAcademico.nome}</TableCellStyled> {/* Use TableCellStyled */}
-                  <TableCellStyled>{reserva.professor.nome}</TableCellStyled>
+                  <TableCellStyled>{reserva.espacoAcademico.sigla} - {reserva.espacoAcademico.nome}</TableCellStyled>
+                  <TableCellStyled>{formatarNomeProfessor(reserva.professor.nome)}</TableCellStyled>
                   <TableCellStyled>{formatarData(reserva.data)}</TableCellStyled>
                   <TableCellStyled>
                     {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
