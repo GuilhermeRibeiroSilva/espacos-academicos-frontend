@@ -62,6 +62,7 @@ const StatusChip = styled(Chip)(({ status }) => {
   const getStatusColor = () => {
     switch (status) {
       case 'PENDENTE':
+      case 'AGENDADO': // Adicionado AGENDADO
         return { bg: '#FFA726', color: '#fff' };
       case 'EM_USO':
         return { bg: '#42A5F5', color: '#fff' };
@@ -176,8 +177,13 @@ const ReservasProfessor = () => {
           // Clone para não mutar o estado diretamente
           const novaReserva = {...reserva};
           
-          // Para reservas PENDENTES: se hora inicial <= hora atual < hora final => EM_USO
-          if (reserva.status === 'PENDENTE' && 
+          // Converter PENDENTE para AGENDADO
+          if (novaReserva.status === 'PENDENTE') {
+            novaReserva.status = 'AGENDADO';
+          }
+          
+          // Para reservas AGENDADO/PENDENTE: se hora inicial <= hora atual < hora final => EM_USO
+          if ((reserva.status === 'PENDENTE' || reserva.status === 'AGENDADO') && 
               reserva.horaInicial <= horaAtual && 
               reserva.horaFinal > horaAtual) {
             novaReserva.status = 'EM_USO';
@@ -229,7 +235,8 @@ const ReservasProfessor = () => {
   // Mesma função de tradução de status do ListaReservas
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'PENDENTE': return 'Pendente';
+      case 'PENDENTE': 
+      case 'AGENDADO': return 'Agendado'; // Alterado para "Agendado"
       case 'EM_USO': return 'Em uso';
       case 'AGUARDANDO_CONFIRMACAO': return 'Aguardando confirmação';
       case 'UTILIZADO': return 'Utilizado';

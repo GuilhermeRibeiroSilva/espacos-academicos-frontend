@@ -131,9 +131,9 @@ const FormReserva = () => {
           const reservaRes = await api.get(`/reservas/${id}`);
           const reserva = reservaRes.data;
 
-          // Verificar se é pendente (só pode editar reservas pendentes)
-          if (reserva.status !== 'PENDENTE') {
-            setError('Apenas reservas pendentes podem ser editadas');
+          // Verificar se é agendado (só pode editar reservas agendadas)
+          if (reserva.status !== 'PENDENTE' && reserva.status !== 'AGENDADO') {
+            setError('Apenas reservas agendadas podem ser editadas');
             setTimeout(() => navigate('/reservas'), 3000);
             return;
           }

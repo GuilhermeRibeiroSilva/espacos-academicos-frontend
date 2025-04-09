@@ -37,7 +37,7 @@ const StatusChip = styled(Chip)(({ status }) => {
   const getStatusColor = () => {
     switch (status) {
       case 'EM_USO':
-        return { bg: '#f44336', color: '#fff' };
+        return { bg: '#42A5F5', color: '#fff' };
       case 'DISPONÍVEL':
         return { bg: '#4caf50', color: '#fff' };
       case 'INDISPONÍVEL':
@@ -333,7 +333,7 @@ const ListaEspacos = () => {
       }}>
         <TableContainer>
           <Table>
-            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+            <TableHead sx={{ bgcolor: '#f5ff5' }}>
               <TableRow>
                 <TableCell>Sigla</TableCell>
                 <TableCell>Nome</TableCell>
