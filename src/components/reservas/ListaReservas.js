@@ -41,7 +41,8 @@ const NewButton = styled(Button)({
 const StyledTableContainer = styled(TableContainer)({
   boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
   borderRadius: '10px',
-  overflow: 'hidden',
+  overflow: 'auto', // Alterado de 'hidden' para 'auto'
+  maxWidth: '100%', // Garante que não ultrapasse a largura do contêiner pai
 });
 
 const TableHeader = styled(TableHead)({
@@ -78,7 +79,7 @@ const StatusChip = styled(Chip)(({ status }) => {
       case 'EM_USO':
         return { bg: '#42A5F5', color: '#fff' };
       case 'AGUARDANDO_CONFIRMACAO':
-        return { bg: '#EC407A', color: '#fff' };
+        return { bg: '#9EA5B5', color: '#fff' };
       case 'UTILIZADO':
         return { bg: '#66BB6A', color: '#fff' };
       default:
@@ -122,6 +123,17 @@ const EmptyStateText = styled(Typography)({
   color: '#666',
   marginTop: '16px',
   textAlign: 'center',
+});
+
+const StyledTable = styled(Table)({
+  minWidth: 900, // Define uma largura mínima para a tabela
+  tableLayout: 'fixed', // Opcional: faz com que o layout da tabela seja calculado com base nas colunas
+});
+
+const TableCellStyled = styled(TableCell)({
+  whiteSpace: 'nowrap', // Impede quebra de linha
+  overflow: 'hidden',
+  textOverflow: 'ellipsis', // Mostra "..." quando o texto é cortado
 });
 
 const ListaReservas = () => {
@@ -444,7 +456,7 @@ const ListaReservas = () => {
         </EmptyState>
       ) : (
         <StyledTableContainer component={Paper}>
-          <Table>
+          <StyledTable> {/* Use StyledTable em vez de Table */}
             <TableHeader>
               <TableRow>
                 <TableHeaderCell>Espaço</TableHeaderCell>
@@ -458,27 +470,27 @@ const ListaReservas = () => {
             <TableBody>
               {reservas.map((reserva) => (
                 <TableRow key={reserva.id}>
-                  <TableCell>{reserva.espacoAcademico.nome}</TableCell>
-                  <TableCell>{reserva.professor.nome}</TableCell>
-                  <TableCell>{formatarData(reserva.data)}</TableCell>
-                  <TableCell>
+                  <TableCellStyled>{reserva.espacoAcademico.nome}</TableCellStyled> {/* Use TableCellStyled */}
+                  <TableCellStyled>{reserva.professor.nome}</TableCellStyled>
+                  <TableCellStyled>{formatarData(reserva.data)}</TableCellStyled>
+                  <TableCellStyled>
                     {formatarHora(reserva.horaInicial)} - {formatarHora(reserva.horaFinal)}
-                  </TableCell>
-                  <TableCell>
+                  </TableCellStyled>
+                  <TableCellStyled>
                     <StatusChip 
                       label={getStatusLabel(reserva.status)} 
                       status={reserva.status}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex">
+                  </TableCellStyled>
+                  <TableCellStyled>
+                    <Box display="flex" flexWrap="nowrap">  {/* Evite quebra de linha nos botões */}
                       {renderBotoesAcao(reserva)}
                     </Box>
-                  </TableCell>
+                  </TableCellStyled>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </StyledTable>
         </StyledTableContainer>
       )}
 

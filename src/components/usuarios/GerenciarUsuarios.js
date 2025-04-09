@@ -15,7 +15,6 @@ import {
   DialogActions,
   TextField,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   Box,
@@ -28,83 +27,87 @@ import { useFeedback } from '../common/Feedback';
 import { useLoading } from '../../contexts/LoadingContext';
 import api from '../../services/api';
 
-// Criar um estilo base para campos de formulário
-const formFieldStyles = {
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: '#F2EEFF',
-    borderRadius: '8px',
-    '& fieldset': {
-      border: 'none',
-    },
-  },
-  marginBottom: '20px',
-};
-
-// E aplicar nos componentes styled
-const StyledTextField = styled(TextField)(formFieldStyles);
-const StyledFormControl = styled(FormControl)(formFieldStyles);
-
-// Estilos personalizados
-const FormContainer = styled(Box)({
-  backgroundColor: '#0F1140',
+// Componentes estilizados padronizados
+const FormContainer = styled(Paper)(({ theme }) => ({
   borderRadius: '10px',
   padding: '30px',
   width: '100%',
-  boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.25)',
+  maxWidth: '800px',
+  margin: '30px auto',
+  boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
+}));
+
+const PageTitle = styled(Typography)({
+  color: '#0F1140',
+  marginBottom: '24px',
+  fontSize: '24px',
+  fontWeight: 'bold',
 });
 
 const FormLabel = styled(Typography)({
-  color: 'white',
   marginBottom: '8px',
-  fontSize: '16px',
-});
-
-const SaveButton = styled(Button)({
-  backgroundColor: '#F2EEFF',
+  fontWeight: '500',
   color: '#0F1140',
-  padding: '12px 24px',
+});
+
+const StyledButton = styled(Button)(({ variant }) => ({
+  backgroundColor: variant === 'contained' ? '#0F1140' : 'transparent',
+  color: variant === 'contained' ? 'white' : '#0F1140',
+  border: variant === 'outlined' ? '1px solid #0F1140' : 'none',
   borderRadius: '8px',
+  padding: '10px 20px',
   fontWeight: 'bold',
   '&:hover': {
-    backgroundColor: '#E5E0FF',
+    backgroundColor: variant === 'contained' ? '#1a1b4b' : 'rgba(15, 17, 64, 0.1)',
   },
-});
+  minWidth: '120px', // Garante largura mínima para os botões
+}));
 
-const CancelButton = styled(Button)({
-  backgroundColor: 'transparent',
-  color: '#F2EEFF',
-  padding: '12px 24px',
+// Botão de ação padronizado para tabela
+const ActionButton = styled(Button)(({ color }) => ({
+  margin: '0 5px',
   borderRadius: '8px',
+  padding: '6px 16px',
+  minWidth: '120px',
+  textTransform: 'none',
   fontWeight: 'bold',
-  border: '1px solid #F2EEFF',
-  '&:hover': {
-    backgroundColor: 'rgba(242, 238, 255, 0.1)',
-  },
-});
-
-const ButtonContainer = styled(Box)({
-  display: 'flex',
-  gap: '16px',
-  justifyContent: 'center',
-  marginTop: '30px',
-});
-
-const StyledDialogTitle = styled(DialogTitle)({
-  backgroundColor: '#0F1140',
+  backgroundColor: color === 'error' ? '#f44336' : '#0F1140',
   color: 'white',
-  textAlign: 'center',
-  padding: '20px',
+  '&:hover': {
+    backgroundColor: color === 'error' ? '#d32f2f' : '#1a1b4b',
+  }
+}));
+
+const StyledField = styled(TextField)({
+  marginBottom: '20px',
+  width: '100%',
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '8px',
+  },
+});
+
+const StyledSelect = styled(Select)({
+  width: '100%',
+  borderRadius: '8px',
+  marginBottom: '20px', // Adicionando margem inferior
+});
+
+// Componentes de diálogo estilizados
+const StyledDialogTitle = styled(DialogTitle)({
+  color: '#0F1140',
+  fontSize: '22px',
+  fontWeight: 'bold',
+  padding: '20px 24px 16px', // Aumentado o padding inferior
+  marginBottom: '8px', // Adicionado espaço após o título
 });
 
 const StyledDialogContent = styled(DialogContent)({
-  backgroundColor: '#0F1140',
-  padding: '20px 30px',
+  padding: '8px 24px 16px', // Ajustado padding para compensar
 });
 
 const StyledDialogActions = styled(DialogActions)({
-  backgroundColor: '#0F1140',
-  padding: '20px',
-  justifyContent: 'center',
+  padding: '16px 24px',
+  marginTop: '8px', // Adicionado espaço antes das ações
 });
 
 const GerenciarUsuarios = () => {
@@ -217,7 +220,6 @@ const GerenciarUsuarios = () => {
         professorId: parseInt(formData.professorId, 10)
       };
       
-      // URL corrigida para corresponder ao endpoint do backend
       await api.post('/admin/usuarios/professor', dadosFormatados);
       
       showFeedback('Usuário criado com sucesso', 'success');
@@ -240,9 +242,13 @@ const GerenciarUsuarios = () => {
       return;
     }
 
+    if (novaSenha.length < 6) {
+      showFeedback('A nova senha deve ter pelo menos 6 caracteres', 'error');
+      return;
+    }
+
     showLoading('Resetando senha...');
     try {
-      // Corrigir URL para match com backend - remover prefixo /api duplicado
       await api.put(`/admin/usuarios/${selectedUsuario.id}/resetar-senha`, {
         novaSenha
       });
@@ -292,26 +298,18 @@ const GerenciarUsuarios = () => {
     <div>
       <FeedbackComponent />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h5">Gerenciar Usuários</Typography>
-        <Button
+        <PageTitle>Gerenciar Usuários</PageTitle>
+        <StyledButton
           variant="contained"
-          color="primary"
           onClick={handleOpenDialog}
-          sx={{
-            bgcolor: '#0F1140',
-            '&:hover': { bgcolor: '#1a1b4b' },
-            borderRadius: '4px',
-            py: 1.5,
-            px: 3
-          }}
         >
           Novo Usuário
-        </Button>
+        </StyledButton>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)', borderRadius: '10px' }}>
         <Table>
-          <TableHead>
+          <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
             <TableRow>
               <TableCell>Username</TableCell>
               <TableCell>Tipo</TableCell>
@@ -334,29 +332,24 @@ const GerenciarUsuarios = () => {
                   </TableCell>
                   <TableCell>{usuario.professorNome || '-'}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      onClick={() => handleOpenResetSenhaDialog(usuario)}
-                      sx={{
-                        mr: 1,
-                        bgcolor: '#0F1140',
-                        '&:hover': { bgcolor: '#1a1b4b' }
-                      }}
-                    >
-                      Resetar Senha
-                    </Button>
-                    {usuario.role !== 'ROLE_ADMIN' && (
-                      <Button
-                        variant="contained"
-                        color="error"
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                      <ActionButton
+                        onClick={() => handleOpenResetSenhaDialog(usuario)}
                         size="small"
-                        onClick={() => handleOpenDeleteDialog(usuario)}
                       >
-                        Excluir
-                      </Button>
-                    )}
+                        Resetar Senha
+                      </ActionButton>
+                      
+                      {usuario.role !== 'ROLE_ADMIN' && (
+                        <ActionButton
+                          onClick={() => handleOpenDeleteDialog(usuario)}
+                          color="error"
+                          size="small"
+                        >
+                          Excluir
+                        </ActionButton>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -371,25 +364,26 @@ const GerenciarUsuarios = () => {
         </Table>
       </TableContainer>
 
-      {/* Dialog para criar usuário professor - ESTILIZADO */}
+      {/* Dialog para criar usuário professor - CORRIGIDO ESPAÇAMENTO */}
       <Dialog 
         open={dialogOpen} 
         onClose={handleCloseDialog}
         PaperProps={{
           style: {
-            backgroundColor: '#0F1140',
             borderRadius: '10px',
-            maxWidth: '500px',
+            maxWidth: '600px',
             width: '100%'
           }
         }}
       >
-        <StyledDialogTitle>Criar Usuário Professor</StyledDialogTitle>
+        <StyledDialogTitle>
+          Criar Usuário Professor
+        </StyledDialogTitle>
         <StyledDialogContent>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             <Grid item xs={12}>
               <FormLabel>Nome de Usuário (email)</FormLabel>
-              <StyledTextField
+              <StyledField
                 fullWidth
                 placeholder="Digite o email"
                 name="username"
@@ -398,13 +392,12 @@ const GerenciarUsuarios = () => {
                 onChange={handleChange}
                 required
                 variant="outlined"
-                InputLabelProps={{ shrink: false }}
               />
             </Grid>
             
             <Grid item xs={12}>
               <FormLabel>Senha</FormLabel>
-              <StyledTextField
+              <StyledField
                 fullWidth
                 placeholder="Digite a senha"
                 name="password"
@@ -413,14 +406,13 @@ const GerenciarUsuarios = () => {
                 onChange={handleChange}
                 required
                 variant="outlined"
-                InputLabelProps={{ shrink: false }}
               />
             </Grid>
             
             <Grid item xs={12}>
               <FormLabel>Professor</FormLabel>
-              <StyledFormControl fullWidth>
-                <Select
+              <FormControl fullWidth>
+                <StyledSelect
                   name="professorId"
                   value={formData.professorId}
                   onChange={handleChange}
@@ -432,102 +424,140 @@ const GerenciarUsuarios = () => {
                     return professor ? `${professor.nome} - ${professor.escola}` : '';
                   }}
                 >
+                  <MenuItem value="" disabled>Selecione um professor</MenuItem>
                   {professoresSemUsuario.map((professor) => (
                     <MenuItem key={professor.id} value={professor.id}>
                       {professor.nome} - {professor.escola}
                     </MenuItem>
                   ))}
-                </Select>
-              </StyledFormControl>
+                </StyledSelect>
+              </FormControl>
             </Grid>
           </Grid>
         </StyledDialogContent>
         <StyledDialogActions>
-          <ButtonContainer>
-            <CancelButton onClick={handleCloseDialog}>
+          <Box display="flex" justifyContent="space-between" width="100%">
+            <StyledButton
+              variant="outlined"
+              onClick={handleCloseDialog}
+            >
               Cancelar
-            </CancelButton>
-            <SaveButton onClick={handleSubmit}>
+            </StyledButton>
+            <StyledButton
+              variant="contained"
+              onClick={handleSubmit}
+            >
               Cadastrar
-            </SaveButton>
-          </ButtonContainer>
+            </StyledButton>
+          </Box>
         </StyledDialogActions>
       </Dialog>
 
-      {/* Dialog para resetar senha - ESTILIZADO */}
+      {/* Dialog para resetar senha - CORRIGIDO ESPAÇAMENTO */}
       <Dialog 
         open={resetSenhaDialogOpen} 
         onClose={handleCloseResetSenhaDialog}
         PaperProps={{
           style: {
-            backgroundColor: '#0F1140',
             borderRadius: '10px',
             maxWidth: '500px',
             width: '100%'
           }
         }}
       >
-        <StyledDialogTitle>Resetar Senha</StyledDialogTitle>
+        <StyledDialogTitle>
+          Resetar Senha
+        </StyledDialogTitle>
         <StyledDialogContent>
-          <FormLabel sx={{ mb: 2 }}>
-            Usuário: {selectedUsuario?.username}
-          </FormLabel>
-          <FormLabel>Nova Senha</FormLabel>
-          <StyledTextField
-            fullWidth
-            placeholder="Digite a nova senha"
-            type="password"
-            value={novaSenha}
-            onChange={(e) => setNovaSenha(e.target.value)}
-            required
-            variant="outlined"
-            InputLabelProps={{ shrink: false }}
-          />
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Você está resetando a senha do usuário <strong>{selectedUsuario?.username}</strong>
+              </Alert>
+            </Grid>
+            <Grid item xs={12}>
+              <FormLabel>Nova Senha</FormLabel>
+              <StyledField
+                fullWidth
+                placeholder="Digite a nova senha"
+                type="password"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                required
+                variant="outlined"
+              />
+            </Grid>
+          </Grid>
         </StyledDialogContent>
         <StyledDialogActions>
-          <ButtonContainer>
-            <CancelButton onClick={handleCloseResetSenhaDialog}>
+          <Box display="flex" justifyContent="space-between" width="100%">
+            <StyledButton
+              variant="outlined"
+              onClick={handleCloseResetSenhaDialog}
+            >
               Cancelar
-            </CancelButton>
-            <SaveButton onClick={handleResetSenha}>
+            </StyledButton>
+            <StyledButton
+              variant="contained"
+              onClick={handleResetSenha}
+            >
               Resetar
-            </SaveButton>
-          </ButtonContainer>
+            </StyledButton>
+          </Box>
         </StyledDialogActions>
       </Dialog>
 
-      {/* Dialog para confirmar exclusão - ESTILIZADO */}
+      {/* Dialog para confirmar exclusão - CORRIGIDO ESPAÇAMENTO */}
       <Dialog 
         open={deleteDialogOpen} 
         onClose={handleCloseDeleteDialog}
         PaperProps={{
           style: {
-            backgroundColor: '#0F1140',
             borderRadius: '10px',
             maxWidth: '500px',
             width: '100%'
           }
         }}
       >
-        <StyledDialogTitle>Confirmar Exclusão</StyledDialogTitle>
+        <StyledDialogTitle>
+          Confirmar Exclusão
+        </StyledDialogTitle>
         <StyledDialogContent>
-          <Typography color="white">
-            Tem certeza que deseja excluir o usuário {usuarioToDelete?.username}?
-          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                Tem certeza que deseja excluir o usuário <strong>{usuarioToDelete?.username}</strong>?
+              </Alert>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body1">
+                Esta ação não pode ser desfeita.
+              </Typography>
+            </Grid>
+          </Grid>
         </StyledDialogContent>
         <StyledDialogActions>
-          <ButtonContainer>
-            <CancelButton onClick={handleCloseDeleteDialog}>
+          <Box display="flex" justifyContent="space-between" width="100%">
+            <StyledButton
+              variant="outlined"
+              onClick={handleCloseDeleteDialog}
+            >
               Cancelar
-            </CancelButton>
-            <Button
-              onClick={confirmDelete}
+            </StyledButton>
+            <StyledButton
               variant="contained"
               color="error"
+              onClick={confirmDelete}
+              sx={{ 
+                backgroundColor: '#f44336',
+                '&:hover': {
+                  backgroundColor: '#d32f2f'
+                }
+              }}
             >
               Excluir
-            </Button>
-          </ButtonContainer>
+            </StyledButton>
+          </Box>
         </StyledDialogActions>
       </Dialog>
     </div>

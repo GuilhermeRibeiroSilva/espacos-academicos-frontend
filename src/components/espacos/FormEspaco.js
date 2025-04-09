@@ -5,12 +5,58 @@ import {
   Button, 
   Box, 
   Paper,
-  Container
+  Container,
+  Grid,
+  Alert
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useFeedback } from '../common/Feedback';
+import { styled } from '@mui/material/styles';
+
+// Componentes estilizados
+const FormContainer = styled(Paper)(({ theme }) => ({
+  borderRadius: '10px',
+  padding: '30px',
+  width: '100%',
+  maxWidth: '800px',
+  margin: '30px auto',
+  boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
+}));
+
+const PageTitle = styled(Typography)({
+  color: '#0F1140',
+  marginBottom: '24px',
+  fontSize: '24px',
+  fontWeight: 'bold',
+});
+
+const FormLabel = styled(Typography)({
+  marginBottom: '8px',
+  fontWeight: '500',
+  color: '#0F1140',
+});
+
+const StyledButton = styled(Button)(({ variant }) => ({
+  backgroundColor: variant === 'contained' ? '#0F1140' : 'transparent',
+  color: variant === 'contained' ? 'white' : '#0F1140',
+  border: variant === 'outlined' ? '1px solid #0F1140' : 'none',
+  borderRadius: '8px',
+  padding: '10px 20px',
+  fontWeight: 'bold',
+  '&:hover': {
+    backgroundColor: variant === 'contained' ? '#1a1b4b' : 'rgba(15, 17, 64, 0.1)',
+  },
+}));
+
+const StyledField = styled(TextField)({
+  marginBottom: '20px',
+  width: '100%',
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '8px',
+  },
+});
 
 const FormEspaco = () => {
   const { id } = useParams();
@@ -25,6 +71,7 @@ const FormEspaco = () => {
     disponivel: true
   });
   const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState(false);
 
   const isEdicao = !!id;
 
@@ -99,16 +146,22 @@ const FormEspaco = () => {
     try {
       if (isEdicao) {
         await api.put(`/espacos/${id}`, formData);
+        setSuccess(true);
         showFeedback('Espaço acadêmico atualizado com sucesso', 'success');
       } else {
         await api.post('/espacos', formData);
+        setSuccess(true);
         showFeedback('Espaço acadêmico cadastrado com sucesso', 'success');
       }
-      navigate('/espacos');
+      
+      // Redirecionar após 2 segundos quando sucesso
+      setTimeout(() => {
+        navigate('/espacos');
+      }, 2000);
     } catch (error) {
       console.error('Erro ao salvar espaço:', error);
       const mensagemErro = error.response?.data?.message || 
-                        `Erro ao ${isEdicao ? 'atualizar' : 'cadastrar'} espaço acadêmico`;
+                       `Erro ao ${isEdicao ? 'atualizar' : 'cadastrar'} espaço acadêmico`;
       showFeedback(mensagemErro, 'error');
     } finally {
       hideLoading();
@@ -116,177 +169,92 @@ const FormEspaco = () => {
   };
 
   return (
-    <Container maxWidth="md">
+    <FormContainer>
       <FeedbackComponent />
-      <Typography variant="h4" gutterBottom>
+      <PageTitle>
         {isEdicao ? 'Editar Espaço Acadêmico' : 'Cadastrar Espaço Acadêmico'}
-      </Typography>
+      </PageTitle>
       
-      <Paper 
-        sx={{ 
-          p: 4, 
-          mt: 2, 
-          bgcolor: '#0F1140', 
-          borderRadius: '8px',
-          color: 'white'
-        }}
-      >
-        <Box component="form" onSubmit={handleSubmit}>
-          <Typography variant="subtitle1" gutterBottom>
-            Sigla
-          </Typography>
-          <TextField
-            fullWidth
-            name="sigla"
-            value={formData.sigla}
-            onChange={handleChange}
-            placeholder="Digite a sigla"
-            error={!!errors.sigla}
-            helperText={errors.sigla}
-            sx={{ 
-              mb: 3,
-              bgcolor: '#f8f0ff',
-              borderRadius: '4px',
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'transparent',
-                },
-              },
-            }}
-          />
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          Espaço acadêmico {isEdicao ? 'atualizado' : 'cadastrado'} com sucesso!
+        </Alert>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <FormLabel>Sigla</FormLabel>
+            <StyledField
+              fullWidth
+              name="sigla"
+              value={formData.sigla}
+              onChange={handleChange}
+              placeholder="Digite a sigla"
+              error={!!errors.sigla}
+              helperText={errors.sigla}
+            />
+          </Grid>
           
-          <Typography variant="subtitle1" gutterBottom>
-            Nome
-          </Typography>
-          <TextField
-            fullWidth
-            name="nome"
-            value={formData.nome}
-            onChange={handleChange}
-            placeholder="Digite o nome"
-            error={!!errors.nome}
-            helperText={errors.nome}
-            sx={{ 
-              mb: 3,
-              bgcolor: '#f8f0ff',
-              borderRadius: '4px',
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'transparent',
-                },
-              },
-            }}
-          />
+          <Grid item xs={12} md={6}>
+            <FormLabel>Nome</FormLabel>
+            <StyledField
+              fullWidth
+              name="nome"
+              value={formData.nome}
+              onChange={handleChange}
+              placeholder="Digite o nome"
+              error={!!errors.nome}
+              helperText={errors.nome}
+            />
+          </Grid>
           
-          <Typography variant="subtitle1" gutterBottom>
-            Descrição
-          </Typography>
-          <TextField
-            fullWidth
-            name="descricao"
-            value={formData.descricao}
-            onChange={handleChange}
-            placeholder="Digite a descrição"
-            multiline
-            rows={4}
-            sx={{ 
-              mb: 3,
-              bgcolor: '#f8f0ff',
-              borderRadius: '4px',
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'transparent',
-                },
-              },
-            }}
-          />
+          <Grid item xs={12}>
+            <FormLabel>Descrição</FormLabel>
+            <StyledField
+              fullWidth
+              name="descricao"
+              value={formData.descricao}
+              onChange={handleChange}
+              placeholder="Digite a descrição"
+              multiline
+              rows={4}
+            />
+          </Grid>
           
-          <Typography variant="subtitle1" gutterBottom>
-            Capacidade de Alunos
-          </Typography>
-          <TextField
-            fullWidth
-            name="capacidadeAlunos"
-            type="number"
-            value={formData.capacidadeAlunos}
-            onChange={handleChange}
-            placeholder="Digite a capacidade"
-            error={!!errors.capacidadeAlunos}
-            helperText={errors.capacidadeAlunos}
-            sx={{ 
-              mb: 4,
-              bgcolor: '#f8f0ff',
-              borderRadius: '4px',
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'transparent',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'transparent',
-                },
-              },
-            }}
-          />
+          <Grid item xs={12} md={6}>
+            <FormLabel>Capacidade de Alunos</FormLabel>
+            <StyledField
+              fullWidth
+              name="capacidadeAlunos"
+              type="number"
+              value={formData.capacidadeAlunos}
+              onChange={handleChange}
+              placeholder="Digite a capacidade"
+              error={!!errors.capacidadeAlunos}
+              helperText={errors.capacidadeAlunos}
+            />
+          </Grid>
           
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 4 }}>
-            <Button
-              onClick={() => navigate('/espacos')}
-              variant="outlined"
-              sx={{ 
-                color: '#f8f0ff',
-                borderColor: '#f8f0ff',
-                '&:hover': { 
-                  borderColor: '#e8e5ef',
-                  color: '#e8e5ef'
-                },
-                py: 1.5,
-                flex: 1
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              sx={{ 
-                py: 1.5,
-                bgcolor: '#f8f0ff',
-                color: '#0F1140',
-                '&:hover': {
-                  bgcolor: '#e0d0f0',
-                },
-                fontWeight: 'bold',
-                fontSize: '1rem',
-                flex: 1
-              }}
-            >
-              {isEdicao ? 'Atualizar' : 'Cadastrar'}
-            </Button>
-          </Box>
-        </Box>
-      </Paper>
-    </Container>
+          <Grid item xs={12}>
+            <Box display="flex" justifyContent="space-between" mt={2}>
+              <StyledButton
+                variant="outlined"
+                onClick={() => navigate('/espacos')}
+              >
+                Cancelar
+              </StyledButton>
+              <StyledButton
+                type="submit"
+                variant="contained"
+              >
+                {isEdicao ? 'Atualizar' : 'Cadastrar'}
+              </StyledButton>
+            </Box>
+          </Grid>
+        </Grid>
+      </form>
+    </FormContainer>
   );
 };
 
