@@ -2,40 +2,50 @@ import React from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
 
+const styles = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "80vh",
+    textAlign: "center",
+    padding: 3
+  },
+  title: {
+    color: '#0F1140',
+    fontSize: '6rem',
+    fontWeight: 'bold'
+  },
+  subtitle: {
+    color: '#0F1140', 
+    mb: 2
+  },
+  description: {
+    maxWidth: '500px', 
+    mb: 4
+  },
+  button: {
+    mt: 2,
+    backgroundColor: '#0F1140',
+    color: 'white',
+    padding: '10px 30px',
+    '&:hover': {
+      backgroundColor: '#1a1b4b',
+    },
+  }
+};
+
 const NotFound = () => {
   return (
-    <Box
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
-      minHeight="80vh" // Aumentar para ocupar mais espaço vertical
-      textAlign="center"
-      sx={{ padding: 3 }}
-    >
-      <Typography 
-        variant="h1" 
-        sx={{ 
-          color: '#0F1140', // Usar a cor primária do sistema
-          fontSize: '6rem',
-          fontWeight: 'bold'
-        }} 
-        gutterBottom
-      >
+    <Box sx={styles.container}>
+      <Typography variant="h1" sx={styles.title} gutterBottom>
         404
       </Typography>
-      <Typography 
-        variant="h4" 
-        sx={{ color: '#0F1140', mb: 2 }}
-      >
+      <Typography variant="h4" sx={styles.subtitle}>
         Página não encontrada
       </Typography>
-      <Typography 
-        variant="body1" 
-        color="text.secondary" 
-        paragraph
-        sx={{ maxWidth: '500px', mb: 4 }}
-      >
+      <Typography variant="body1" color="text.secondary" paragraph sx={styles.description}>
         A página que você está procurando não existe ou foi movida. 
         Por favor, retorne ao dashboard ou entre em contato com o administrador.
       </Typography>
@@ -44,15 +54,7 @@ const NotFound = () => {
         to="/dashboard"
         variant="contained"
         size="large"
-        sx={{ 
-          mt: 2,
-          backgroundColor: '#0F1140',
-          color: 'white',
-          padding: '10px 30px',
-          '&:hover': {
-            backgroundColor: '#1a1b4b',
-          },
-        }}
+        sx={styles.button}
       >
         Voltar para o Dashboard
       </Button>

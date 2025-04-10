@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Box,
   TextField,
@@ -12,33 +12,25 @@ import {
   styled
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
 
 // Estilos personalizados
-const LoginContainer = styled(Box)(({ theme }) => ({
+const LoginContainer = styled(Box)({
   display: 'flex',
   minHeight: '100vh',
   backgroundColor: '#F2F2F2',
-}));
+});
 
-const LeftPanel = styled(Box)(({ theme }) => ({
+const Panel = styled(Box)(({ theme, isLeft }) => ({
   flex: '1',
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
   alignItems: 'center',
   padding: theme.spacing(4),
-  backgroundColor: '#0F1140',
-  color: '#F2F2F2',
-}));
-
-const RightPanel = styled(Box)(({ theme }) => ({
-  flex: '1',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: theme.spacing(4),
+  ...(isLeft && {
+    backgroundColor: '#0F1140',
+    color: '#F2F2F2',
+  }),
 }));
 
 const LoginForm = styled(Paper)(({ theme }) => ({
@@ -92,33 +84,19 @@ const LogoContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  color: '#0F1140',
-  fontFamily: 'Orbitron, Arial, sans-serif',
-  fontWeight: 'bold',
-  fontSize: '18px',
 }));
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }));
-  };
-
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
+    setFormData(prevData => ({ ...prevData, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -145,11 +123,9 @@ const Login = () => {
       if (success) {
         navigate('/dashboard');
       } else {
-        // Este bloco será executado se login retornar false, mas não lançar exceção
         setError('Credenciais inválidas');
       }
     } catch (err) {
-      // Extrair mensagem de erro mais específica da API, se disponível
       const errorMessage = err.response?.data?.message || 'Falha no login. Verifique suas credenciais.';
       setError(errorMessage);
     } finally {
@@ -159,21 +135,20 @@ const Login = () => {
 
   return (
     <LoginContainer>
-      <LeftPanel>
+      <Panel isLeft>
         <LogoContainer>
-        <img 
-            src={`${process.env.PUBLIC_URL}/img/ucasl-branco.png`}
+          <img 
+            src={`${process.env.PUBLIC_URL}/img/Logo-Ucsal.png`}
             alt="Logo" 
             style={{ width: '80%', height: '80%', objectFit: 'contain' }} 
           />
         </LogoContainer>
-
         <TitleText variant="h3">
-        Sistema de Controle de Espaços Acadêmicos
+          Sistema de Controle de Espaços Acadêmicos
         </TitleText>
-      </LeftPanel>
+      </Panel>
 
-      <RightPanel>
+      <Panel>
         <LoginForm elevation={3}>
           <Typography
             variant="h4"
@@ -189,10 +164,7 @@ const Login = () => {
           </Typography>
 
           {error && (
-            <Typography
-              color="error"
-              sx={{ mb: 2, textAlign: 'center' }}
-            >
+            <Typography color="error" sx={{ mb: 2, textAlign: 'center' }}>
               {error}
             </Typography>
           )}
@@ -220,7 +192,7 @@ const Login = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={handleClickShowPassword}
+                      onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -240,7 +212,7 @@ const Login = () => {
             </LoginButton>
           </form>
         </LoginForm>
-      </RightPanel>
+      </Panel>
     </LoginContainer>
   );
 };

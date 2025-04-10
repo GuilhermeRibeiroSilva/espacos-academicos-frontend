@@ -7,7 +7,6 @@ import {
   Box, 
   Grid,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   Alert
@@ -79,6 +78,7 @@ const FormUsuario = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [professores, setProfessores] = useState([]);
+  const [professorSelecionado, setProfessorSelecionado] = useState(null);
 
   useEffect(() => {
     carregarProfessores();
@@ -86,6 +86,16 @@ const FormUsuario = () => {
       carregarUsuario();
     }
   }, [id]);
+
+  // Atualizar professorSelecionado quando o professorId mudar
+  useEffect(() => {
+    if (formData.professorId && professores.length > 0) {
+      const professor = professores.find(p => p.id === formData.professorId);
+      setProfessorSelecionado(professor || null);
+    } else {
+      setProfessorSelecionado(null);
+    }
+  }, [formData.professorId, professores]);
 
   const carregarProfessores = async () => {
     try {
@@ -115,28 +125,34 @@ const FormUsuario = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+  const validarFormulario = () => {
     // Validar campo de username
     if (!formData.username.includes('@')) {
       setError('O username deve ser um email válido');
-      setLoading(false);
-      return;
+      return false;
     }
 
     // Validar campo de senha em caso de novo usuário
     if (!id && (!formData.password || formData.password.length < 6)) {
       setError('A senha deve ter pelo menos 6 caracteres');
-      setLoading(false);
-      return;
+      return false;
     }
 
     // Validar seleção de professor quando role é professor
     if (formData.role === 'ROLE_PROFESSOR' && !formData.professorId) {
       setError('É necessário selecionar um professor');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (!validarFormulario()) {
       setLoading(false);
       return;
     }
@@ -160,6 +176,33 @@ const FormUsuario = () => {
       setLoading(false);
     }
   };
+
+  const renderProfessorSelect = () => (
+    <Grid item xs={12} md={6}>
+      <FormLabel>Professor</FormLabel>
+      <FormControl fullWidth sx={{ mb: 2 }}>
+        <StyledSelect
+          name="professorId"
+          value={formData.professorId}
+          onChange={handleChange}
+          required={formData.role === 'ROLE_PROFESSOR'}
+          disabled={loading}
+        >
+          <MenuItem value="" disabled>Selecione um professor</MenuItem>
+          {professores.map(professor => (
+            <MenuItem key={professor.id} value={professor.id}>
+              {professor.nome}
+            </MenuItem>
+          ))}
+        </StyledSelect>
+      </FormControl>
+      {professorSelecionado && (
+        <Typography variant="body2">
+          Escola/Disciplina: {professorSelecionado?.escola || 'Não informada'}
+        </Typography>
+      )}
+    </Grid>
+  );
 
   return (
     <FormContainer>
@@ -226,30 +269,7 @@ const FormUsuario = () => {
             </FormControl>
           </Grid>
 
-          {formData.role === 'ROLE_PROFESSOR' && (
-            <Grid item xs={12} md={6}>
-              <FormLabel>Professor</FormLabel>
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <StyledSelect
-                  name="professorId"
-                  value={formData.professorId}
-                  onChange={handleChange}
-                  required={formData.role === 'ROLE_PROFESSOR'}
-                  disabled={loading}
-                >
-                  <MenuItem value="" disabled>Selecione um professor</MenuItem>
-                  {professores.map(professor => (
-                    <MenuItem key={professor.id} value={professor.id}>
-                      {professor.nome}
-                    </MenuItem>
-                  ))}
-                </StyledSelect>
-              </FormControl>
-              <Typography variant="body2">
-                Escola/Disciplina: {professorSelecionado?.escola || 'Não informada'}
-              </Typography>
-            </Grid>
-          )}
+          {formData.role === 'ROLE_PROFESSOR' && renderProfessorSelect()}
 
           <Grid item xs={12}>
             <Box display="flex" justifyContent="space-between" mt={2}>

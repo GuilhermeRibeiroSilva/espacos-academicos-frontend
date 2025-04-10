@@ -57,6 +57,24 @@ const StyledField = styled(TextField)({
   },
 });
 
+// Constantes para mensagens
+const MENSAGENS = {
+  ERRO_NOME: 'O nome é obrigatório',
+  ERRO_ESCOLA: 'A escola é obrigatória',
+  ERRO_FORMULARIO: 'Por favor, corrija os erros no formulário',
+  CARREGANDO_PROFESSOR: 'Carregando dados do professor...',
+  ERRO_CARREGAR: 'Erro ao carregar dados do professor',
+  CADASTRANDO: 'Cadastrando professor...',
+  ATUALIZANDO: 'Atualizando professor...',
+  SUCESSO_CADASTRO: 'Professor cadastrado com sucesso!',
+  SUCESSO_ATUALIZACAO: 'Professor atualizado com sucesso!',
+};
+
+const CAMPOS_INICIAIS = {
+  nome: '',
+  escola: ''
+};
+
 const FormProfessor = () => {
   const { id } = useParams();
   const isEdicao = !!id;
@@ -64,23 +82,17 @@ const FormProfessor = () => {
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
   
-  const [formData, setFormData] = useState({
-    nome: '',
-    escola: ''
-  });
-  
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [formData, setFormData] = useState(CAMPOS_INICIAIS);
   const [errors, setErrors] = useState({});
   
   useEffect(() => {
     if (isEdicao) {
       carregarProfessor();
     }
-  }, [id, isEdicao]);
+  }, [id]);
   
   const carregarProfessor = async () => {
-    showLoading('Carregando dados do professor...');
+    showLoading(MENSAGENS.CARREGANDO_PROFESSOR);
     try {
       const response = await api.get(`/professores/${id}`);
       setFormData({
@@ -89,7 +101,7 @@ const FormProfessor = () => {
       });
     } catch (error) {
       console.error('Erro ao carregar professor:', error);
-      showFeedback('Erro ao carregar dados do professor', 'error');
+      showFeedback(MENSAGENS.ERRO_CARREGAR, 'error');
       navigate('/professores');
     } finally {
       hideLoading();
@@ -98,10 +110,7 @@ const FormProfessor = () => {
   
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
     
     // Limpar erro do campo quando atualizado
     if (errors[name]) {
@@ -112,12 +121,12 @@ const FormProfessor = () => {
   const validarFormulario = () => {
     const novosErros = {};
     
-    if (!formData.nome || formData.nome.trim() === '') {
-      novosErros.nome = 'O nome é obrigatório';
+    if (!formData.nome?.trim()) {
+      novosErros.nome = MENSAGENS.ERRO_NOME;
     }
     
-    if (!formData.escola || formData.escola.trim() === '') {
-      novosErros.escola = 'A escola é obrigatória';
+    if (!formData.escola?.trim()) {
+      novosErros.escola = MENSAGENS.ERRO_ESCOLA;
     }
     
     setErrors(novosErros);
@@ -128,39 +137,52 @@ const FormProfessor = () => {
     e.preventDefault();
     
     if (!validarFormulario()) {
-      showFeedback('Por favor, corrija os erros no formulário', 'error');
+      showFeedback(MENSAGENS.ERRO_FORMULARIO, 'error');
       return;
     }
     
     try {
-      setLoading(true);
-      showLoading(isEdicao ? 'Atualizando professor...' : 'Cadastrando professor...');
+      const mensagem = isEdicao ? MENSAGENS.ATUALIZANDO : MENSAGENS.CADASTRANDO;
+      showLoading(mensagem);
       
-      if (id) {
+      if (isEdicao) {
         await api.put(`/professores/${id}`, formData);
-        setSuccess(true);
-        showFeedback('Professor atualizado com sucesso!', 'success');
+        showFeedback(MENSAGENS.SUCESSO_ATUALIZACAO, 'success');
       } else {
         await api.post('/professores', formData);
-        setSuccess(true);
-        showFeedback('Professor cadastrado com sucesso!', 'success');
+        showFeedback(MENSAGENS.SUCESSO_CADASTRO, 'success');
       }
       
       // Redirecionar após 2 segundos quando sucesso
-      setTimeout(() => {
-        navigate('/professores');
-      }, 2000);
+      setTimeout(() => navigate('/professores'), 2000);
     } catch (error) {
       console.error('Erro ao salvar professor:', error);
+      const mensagemErro = error.response?.data?.message || error.message;
       showFeedback(
-        `Erro ao ${id ? 'atualizar' : 'cadastrar'} professor. ${error.response?.data?.message || error.message}`,
+        `Erro ao ${isEdicao ? 'atualizar' : 'cadastrar'} professor. ${mensagemErro}`,
         'error'
       );
     } finally {
-      setLoading(false);
       hideLoading();
     }
   };
+
+  // Components de formulário reutilizáveis
+  const CampoFormulario = ({ nome, label, placeholder }) => (
+    <Grid item xs={12}>
+      <FormLabel>{label}</FormLabel>
+      <StyledField
+        fullWidth
+        name={nome}
+        value={formData[nome]}
+        onChange={handleChange}
+        placeholder={placeholder}
+        required
+        error={!!errors[nome]}
+        helperText={errors[nome]}
+      />
+    </Grid>
+  );
   
   return (
     <FormContainer>
@@ -169,55 +191,31 @@ const FormProfessor = () => {
         {isEdicao ? 'Editar Professor' : 'Cadastrar Professor'}
       </PageTitle>
       
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Professor {isEdicao ? 'atualizado' : 'cadastrado'} com sucesso!
-        </Alert>
-      )}
-      
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <FormLabel>Nome</FormLabel>
-            <StyledField
-              fullWidth
-              name="nome"
-              value={formData.nome}
-              onChange={handleChange}
-              placeholder="Digite o nome"
-              required
-              error={!!errors.nome}
-              helperText={errors.nome}
-            />
-          </Grid>
+          <CampoFormulario 
+            nome="nome" 
+            label="Nome" 
+            placeholder="Digite o nome" 
+          />
           
-          <Grid item xs={12}>
-            <FormLabel>Escola/Disciplina</FormLabel>
-            <StyledField
-              fullWidth
-              name="escola"
-              value={formData.escola}
-              onChange={handleChange}
-              placeholder="Digite a escola/disciplina"
-              required
-              error={!!errors.escola}
-              helperText={errors.escola}
-            />
-          </Grid>
+          <CampoFormulario 
+            nome="escola" 
+            label="Escola/Disciplina" 
+            placeholder="Digite a escola/disciplina" 
+          />
           
           <Grid item xs={12}>
             <Box display="flex" justifyContent="space-between" mt={2}>
               <StyledButton
                 variant="outlined"
                 onClick={() => navigate('/professores')}
-                disabled={loading}
               >
                 Cancelar
               </StyledButton>
               <StyledButton
                 type="submit"
                 variant="contained"
-                disabled={loading}
               >
                 {isEdicao ? 'Atualizar' : 'Cadastrar'}
               </StyledButton>

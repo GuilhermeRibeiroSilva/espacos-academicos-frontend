@@ -8,107 +8,28 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
   Box,
   Chip,
   Grid,
-  Alert
+  Alert,
+  Dialog,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import { useFeedback } from '../common/Feedback';
 import { useLoading } from '../../contexts/LoadingContext';
 import api from '../../services/api';
 
-// Componentes estilizados padronizados
-const FormContainer = styled(Paper)(({ theme }) => ({
-  borderRadius: '10px',
-  padding: '30px',
-  width: '100%',
-  maxWidth: '800px',
-  margin: '30px auto',
-  boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
-}));
-
-const PageTitle = styled(Typography)({
-  color: '#0F1140',
-  marginBottom: '24px',
-  fontSize: '24px',
-  fontWeight: 'bold',
-});
-
-const FormLabel = styled(Typography)({
-  marginBottom: '8px',
-  fontWeight: '500',
-  color: '#0F1140',
-});
-
-const StyledButton = styled(Button)(({ variant }) => ({
-  backgroundColor: variant === 'contained' ? '#0F1140' : 'transparent',
-  color: variant === 'contained' ? 'white' : '#0F1140',
-  border: variant === 'outlined' ? '1px solid #0F1140' : 'none',
-  borderRadius: '8px',
-  padding: '10px 20px',
-  fontWeight: 'bold',
-  '&:hover': {
-    backgroundColor: variant === 'contained' ? '#1a1b4b' : 'rgba(15, 17, 64, 0.1)',
-  },
-  minWidth: '120px', // Garante largura mínima para os botões
-}));
-
-// Botão de ação padronizado para tabela
-const ActionButton = styled(Button)(({ color }) => ({
-  margin: '0 5px',
-  borderRadius: '8px',
-  padding: '6px 16px',
-  minWidth: '120px',
-  textTransform: 'none',
-  fontWeight: 'bold',
-  backgroundColor: color === 'error' ? '#f44336' : '#0F1140',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: color === 'error' ? '#d32f2f' : '#1a1b4b',
-  }
-}));
-
-const StyledField = styled(TextField)({
-  marginBottom: '20px',
-  width: '100%',
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '8px',
-  },
-});
-
-const StyledSelect = styled(Select)({
-  width: '100%',
-  borderRadius: '8px',
-  marginBottom: '20px', // Adicionando margem inferior
-});
-
-// Componentes de diálogo estilizados
-const StyledDialogTitle = styled(DialogTitle)({
-  color: '#0F1140',
-  fontSize: '22px',
-  fontWeight: 'bold',
-  padding: '20px 24px 16px', // Aumentado o padding inferior
-  marginBottom: '8px', // Adicionado espaço após o título
-});
-
-const StyledDialogContent = styled(DialogContent)({
-  padding: '8px 24px 16px', // Ajustado padding para compensar
-});
-
-const StyledDialogActions = styled(DialogActions)({
-  padding: '16px 24px',
-  marginTop: '8px', // Adicionado espaço antes das ações
-});
+// Importar estilos e componentes de diálogo
+import { 
+  PageTitle, 
+  StyledButton, 
+  ActionButton, 
+  StyledDialogTitle, 
+  StyledDialogContent, 
+  StyledDialogActions,
+  StyledField,
+  FormLabel
+} from './styles';
+import NovoUsuarioDialog from './dialogs/NovoUsuarioDialog';
 
 const GerenciarUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -158,10 +79,8 @@ const GerenciarUsuarios = () => {
     setDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-  };
-
+  const handleCloseDialog = () => setDialogOpen(false);
+  
   const handleOpenResetSenhaDialog = (usuario) => {
     setSelectedUsuario(usuario);
     setNovaSenha('');
@@ -190,22 +109,19 @@ const GerenciarUsuarios = () => {
     });
   };
 
-  // Adicionar validações robustas para emails e senhas
   const handleSubmit = async () => {
-    // Validar email
+    // Validações
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.username)) {
       showFeedback('Por favor, insira um email válido', 'error');
       return;
     }
 
-    // Validar senha
     if (formData.password.length < 6) {
       showFeedback('A senha deve ter pelo menos 6 caracteres', 'error');
       return;
     }
 
-    // Validar seleção de professor
     if (!formData.professorId) {
       showFeedback('Selecione um professor', 'error');
       return;
@@ -237,12 +153,7 @@ const GerenciarUsuarios = () => {
   };
 
   const handleResetSenha = async () => {
-    if (!novaSenha) {
-      showFeedback('A nova senha é obrigatória', 'error');
-      return;
-    }
-
-    if (novaSenha.length < 6) {
+    if (!novaSenha || novaSenha.length < 6) {
       showFeedback('A nova senha deve ter pelo menos 6 caracteres', 'error');
       return;
     }
@@ -257,8 +168,6 @@ const GerenciarUsuarios = () => {
       handleCloseResetSenhaDialog();
     } catch (error) {
       console.error('Erro ao resetar senha:', error);
-      console.error('Detalhes da resposta:', error.response?.data);
-      
       showFeedback(
         error.response?.data?.message || 'Erro ao resetar senha',
         'error'
@@ -364,96 +273,17 @@ const GerenciarUsuarios = () => {
         </Table>
       </TableContainer>
 
-      {/* Dialog para criar usuário professor - CORRIGIDO ESPAÇAMENTO */}
-      <Dialog 
-        open={dialogOpen} 
+      {/* Usando o componente de diálogo extraído */}
+      <NovoUsuarioDialog 
+        open={dialogOpen}
         onClose={handleCloseDialog}
-        PaperProps={{
-          style: {
-            borderRadius: '10px',
-            maxWidth: '600px',
-            width: '100%'
-          }
-        }}
-      >
-        <StyledDialogTitle>
-          Criar Usuário Professor
-        </StyledDialogTitle>
-        <StyledDialogContent>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <FormLabel>Nome de Usuário (email)</FormLabel>
-              <StyledField
-                fullWidth
-                placeholder="Digite o email"
-                name="username"
-                type="email"
-                value={formData.username}
-                onChange={handleChange}
-                required
-                variant="outlined"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <FormLabel>Senha</FormLabel>
-              <StyledField
-                fullWidth
-                placeholder="Digite a senha"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                variant="outlined"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <FormLabel>Professor</FormLabel>
-              <FormControl fullWidth>
-                <StyledSelect
-                  name="professorId"
-                  value={formData.professorId}
-                  onChange={handleChange}
-                  required
-                  displayEmpty
-                  renderValue={(value) => {
-                    if (!value) return 'Escolha um professor';
-                    const professor = professoresSemUsuario.find(p => p.id === value);
-                    return professor ? `${professor.nome} - ${professor.escola ? professor.escola : 'Sem Escola/Disciplina'}` : '';
-                  }}
-                >
-                  <MenuItem value="" disabled>Selecione um professor</MenuItem>
-                  {professoresSemUsuario.map((professor) => (
-                    <MenuItem key={professor.id} value={professor.id}>
-                      {professor.nome} - {professor.escola}
-                    </MenuItem>
-                  ))}
-                </StyledSelect>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </StyledDialogContent>
-        <StyledDialogActions>
-          <Box display="flex" justifyContent="space-between" width="100%">
-            <StyledButton
-              variant="outlined"
-              onClick={handleCloseDialog}
-            >
-              Cancelar
-            </StyledButton>
-            <StyledButton
-              variant="contained"
-              onClick={handleSubmit}
-            >
-              Cadastrar
-            </StyledButton>
-          </Box>
-        </StyledDialogActions>
-      </Dialog>
+        formData={formData}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+        professoresSemUsuario={professoresSemUsuario}
+      />
 
-      {/* Dialog para resetar senha - CORRIGIDO ESPAÇAMENTO */}
+      {/* Dialog para resetar senha */}
       <Dialog 
         open={resetSenhaDialogOpen} 
         onClose={handleCloseResetSenhaDialog}
@@ -491,23 +321,17 @@ const GerenciarUsuarios = () => {
         </StyledDialogContent>
         <StyledDialogActions>
           <Box display="flex" justifyContent="space-between" width="100%">
-            <StyledButton
-              variant="outlined"
-              onClick={handleCloseResetSenhaDialog}
-            >
+            <StyledButton variant="outlined" onClick={handleCloseResetSenhaDialog}>
               Cancelar
             </StyledButton>
-            <StyledButton
-              variant="contained"
-              onClick={handleResetSenha}
-            >
+            <StyledButton variant="contained" onClick={handleResetSenha}>
               Resetar
             </StyledButton>
           </Box>
         </StyledDialogActions>
       </Dialog>
 
-      {/* Dialog para confirmar exclusão - CORRIGIDO ESPAÇAMENTO */}
+      {/* Dialog para confirmar exclusão */}
       <Dialog 
         open={deleteDialogOpen} 
         onClose={handleCloseDeleteDialog}
@@ -538,10 +362,7 @@ const GerenciarUsuarios = () => {
         </StyledDialogContent>
         <StyledDialogActions>
           <Box display="flex" justifyContent="space-between" width="100%">
-            <StyledButton
-              variant="outlined"
-              onClick={handleCloseDeleteDialog}
-            >
+            <StyledButton variant="outlined" onClick={handleCloseDeleteDialog}>
               Cancelar
             </StyledButton>
             <StyledButton

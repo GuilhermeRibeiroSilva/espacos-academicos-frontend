@@ -22,25 +22,17 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import GroupIcon from '@mui/icons-material/Group';
-import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
-import SettingsIcon from '@mui/icons-material/Settings';
 
 // Importar logo da faculdade
-import LogoFaculdade from '../../img/ucasl-branco.png'; // Certifique-se de ter o logo neste caminho
+import LogoFaculdade from '../../img/ucasl-branco.png';
 
 const Layout = ({ children }) => {
-  const { auth, logout, isAdmin } = useAuth();
+  const { auth, logout } = useAuth();
   const { loading, showLoading, hideLoading } = useLoading();
   const navigate = useNavigate();
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
   const userMenuOpen = Boolean(userMenuAnchorEl);
-  
-  // Novos estados para os submenus
-  const [espacosMenuAnchorEl, setEspacosMenuAnchorEl] = useState(null);
-  const [usuariosMenuAnchorEl, setUsuariosMenuAnchorEl] = useState(null);
-  const [reservasMenuAnchorEl, setReservasMenuAnchorEl] = useState(null);
-  const [professoresMenuAnchorEl, setProfessoresMenuAnchorEl] = useState(null);
   
   const handleUserMenu = (event) => {
     setUserMenuAnchorEl(event.currentTarget);
@@ -52,16 +44,10 @@ const Layout = ({ children }) => {
   
   const handleLogout = async () => {
     try {
-      const result = await logout();
-      if (result) {
-        navigate('/login');
-      } else {
-        // Se o logout da API falhou mas limpamos localmente
-        navigate('/login');
-      }
+      await logout();
+      navigate('/login');
     } catch (error) {
       console.error('Erro ao processar logout:', error);
-      // Mesmo com erro, redirecionar para login
       navigate('/login');
     }
   };
@@ -69,62 +55,49 @@ const Layout = ({ children }) => {
   const handleNavigate = (path) => {
     navigate(path);
     handleUserMenuClose();
-    closeAllMenus();
   };
   
-  // Funções para abrir submenus
-  const handleEspacosMenu = (event) => {
-    setEspacosMenuAnchorEl(event.currentTarget);
+  // Função para extrair apenas o primeiro e último nome
+  const getUserDisplayName = () => {
+    if (!auth.user) return 'Usuário';
+    
+    let nomeCompleto = auth.user.professorNome || auth.user.username;
+    
+    // Se for um email, use apenas a parte antes do @
+    if (nomeCompleto.includes('@')) {
+      nomeCompleto = nomeCompleto.split('@')[0];
+      return nomeCompleto.charAt(0).toUpperCase() + nomeCompleto.slice(1);
+    }
+    
+    // Se for um nome completo, use primeiro e último nome
+    const nomes = nomeCompleto.trim().split(' ');
+    
+    if (nomes.length === 1) return nomes[0]; // apenas um nome
+    if (nomes.length > 1) return `${nomes[0]} ${nomes[nomes.length - 1]}`; // primeiro e último
+    
+    return nomeCompleto;
   };
   
-  const handleUsuariosMenu = (event) => {
-    setUsuariosMenuAnchorEl(event.currentTarget);
-  };
-  
-  const handleReservasMenu = (event) => {
-    setReservasMenuAnchorEl(event.currentTarget);
-  };
-  
-  const handleProfessoresMenu = (event) => {
-    setProfessoresMenuAnchorEl(event.currentTarget);
-  };
-  
-  // Funções para fechar submenus
-  const handleMenuClose = (menuSetter) => {
-    menuSetter(null);
-  };
-  
-  const closeAllMenus = () => {
-    setEspacosMenuAnchorEl(null);
-    setUsuariosMenuAnchorEl(null);
-    setReservasMenuAnchorEl(null);
-    setProfessoresMenuAnchorEl(null);
-    setUserMenuAnchorEl(null);
-  };
-  
-  // Extrair iniciais do nome de usuário para o Avatar
+  // Função para obter iniciais do nome para o Avatar
   const getUserInitials = () => {
-    if (!auth.user || !auth.user.username) return '?';
+    if (!auth.user) return '?';
     
     // Se for professor, usar as iniciais do nome
     if (auth.user.professorNome) {
-      return auth.user.professorNome
-        .split(' ')
-        .map(n => n.charAt(0))
-        .join('')
-        .toUpperCase()
-        .substring(0, 2);
+      const nomes = auth.user.professorNome.split(' ');
+      if (nomes.length === 1) return nomes[0].charAt(0).toUpperCase();
+      return (nomes[0].charAt(0) + nomes[nomes.length - 1].charAt(0)).toUpperCase();
     }
     
-    // Caso contrário, usar as iniciais do email ou nome de usuário
-    const displayName = auth.user.username.split('@')[0];
-    return displayName.charAt(0).toUpperCase();
-  };
-  
-  const getUserDisplayName = () => {
-    if (!auth.user) return '';
-    if (auth.user.professorNome) return auth.user.professorNome;
-    return auth.isAdmin ? 'Administrador' : auth.user.username.split('@')[0];
+    // Se não tiver nome de professor, usar o username
+    const username = auth.user.username || '';
+    
+    if (username.includes('@')) {
+      // Se for um email, usar a primeira letra antes do @
+      return username.charAt(0).toUpperCase();
+    }
+    
+    return username.charAt(0).toUpperCase();
   };
   
   useEffect(() => {
@@ -218,7 +191,7 @@ const Layout = ({ children }) => {
                 
                 {/* Menu de opções específicas baseado no tipo de usuário */}
                 {auth.isAdmin ? (
-                  <div>
+                  <>
                     <MenuItem onClick={() => handleNavigate('/espacos')}>
                       <ListItemIcon>
                         <MeetingRoomIcon fontSize="small" />
@@ -246,17 +219,14 @@ const Layout = ({ children }) => {
                       </ListItemIcon>
                       <ListItemText primary="Reservas" />
                     </MenuItem>
-                  </div>
+                  </>
                 ) : (
-                  // Menu para professores
-                  <div>
-                    <MenuItem onClick={() => handleNavigate('/reservas')}>
-                      <ListItemIcon>
-                        <CalendarMonthIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary="Reservas" />
-                    </MenuItem>
-                  </div>
+                  <MenuItem onClick={() => handleNavigate('/reservas')}>
+                    <ListItemIcon>
+                      <CalendarMonthIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Reservas" />
+                  </MenuItem>
                 )}
                 
                 <Divider />
@@ -275,7 +245,6 @@ const Layout = ({ children }) => {
       <Container component="main" sx={{ flexGrow: 1, py: 4 }}>
         {children}
       </Container>
-      
     </Box>
   );
 };

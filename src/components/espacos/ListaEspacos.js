@@ -15,58 +15,24 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Tooltip,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid
+  Tooltip
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useFeedback } from '../common/Feedback';
-import { styled } from '@mui/material/styles';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import StatusChip from './StatusChip';
+import FiltroEspacos from './FiltroEspacos';
 
-// Componente estilizado para status
-const StatusChip = styled(Chip)(({ status }) => {
-  // Define a cor com base no status
-  const getStatusColor = () => {
-    switch (status) {
-      case 'EM_USO':
-        return { bg: '#42A5F5', color: '#fff' };
-      case 'DISPONÍVEL':
-        return { bg: '#4caf50', color: '#fff' };
-      case 'INDISPONÍVEL':
-        return { bg: '#9e9e9e', color: '#fff' };
-      default:
-        return { bg: '#9e9e9e', color: '#fff' };
-    }
-  };
+// Constantes para facilitar manutenção
+const STATUS = {
+  TODOS: 'TODOS',
+  DISPONIVEL: 'DISPONÍVEL',
+  EM_USO: 'EM_USO',
+  INDISPONIVEL: 'INDISPONÍVEL'
+};
 
-  const colors = getStatusColor();
-
-  return {
-    backgroundColor: colors.bg,
-    color: colors.color,
-    fontWeight: 'bold',
-  };
-});
-
-// Componente estilizado para o filtro
-const FilterContainer = styled(Box)(({ theme }) => ({
-  marginBottom: theme.spacing(3),
-  padding: theme.spacing(2),
-  backgroundColor: '#f5f5f5',
-  borderRadius: '8px',
-  display: 'flex',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: theme.spacing(2),
-}));
+const INTERVALO_ATUALIZACAO = 60000; // 1 minuto em milissegundos
 
 const ListaEspacos = () => {
   const [espacos, setEspacos] = useState([]);
@@ -75,7 +41,8 @@ const ListaEspacos = () => {
   const [espacoParaAtualizarStatus, setEspacoParaAtualizarStatus] = useState(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [filtroStatus, setFiltroStatus] = useState('TODOS');
+  const [filtroStatus, setFiltroStatus] = useState(STATUS.TODOS);
+  
   const navigate = useNavigate();
   const { showLoading, hideLoading } = useLoading();
   const { showFeedback, FeedbackComponent } = useFeedback();
@@ -83,10 +50,10 @@ const ListaEspacos = () => {
   useEffect(() => {
     carregarEspacos();
     
-    // Atualizar o status dos espaços a cada minuto para refletir mudanças em tempo real
+    // Atualizar o status dos espaços periodicamente
     const interval = setInterval(() => {
       carregarEspacos(false); // Não mostrar loading para atualizações silenciosas
-    }, 60000);
+    }, INTERVALO_ATUALIZACAO);
     
     return () => clearInterval(interval);
   }, []);
@@ -97,17 +64,17 @@ const ListaEspacos = () => {
   }, [filtroStatus, espacos]);
 
   const aplicarFiltro = () => {
-    if (filtroStatus === 'TODOS') {
+    if (filtroStatus === STATUS.TODOS) {
       setEspacosFiltrados(espacos);
       return;
     }
     
-    const espacosFiltrados = espacos.filter(espaco => {
-      const statusAtual = espaco.disponivel ? espaco.statusAtual : 'INDISPONÍVEL';
+    const filtrados = espacos.filter(espaco => {
+      const statusAtual = espaco.disponivel ? espaco.statusAtual : STATUS.INDISPONIVEL;
       return statusAtual === filtroStatus;
     });
     
-    setEspacosFiltrados(espacosFiltrados);
+    setEspacosFiltrados(filtrados);
   };
 
   const carregarEspacos = async (showLoadingIndicator = true) => {
@@ -116,42 +83,8 @@ const ListaEspacos = () => {
     }
     
     try {
-      // Buscar os espaços acadêmicos
       const response = await api.get('/espacos');
-      
-      // Verificar os espaços que estão atualmente em uso
-      const agora = new Date();
-      const dataHoje = agora.toISOString().split('T')[0];
-      const horaAtual = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}:00`;
-      
-      // Para cada espaço, verificar se há reservas ativas no momento atual
-      const espacosComStatus = await Promise.all(response.data.map(async (espaco) => {
-        if (!espaco.disponivel) {
-          return { ...espaco, statusAtual: 'INDISPONÍVEL' };
-        }
-        
-        try {
-          const reservasResponse = await api.get('/reservas/buscar-por-espaco-data', {
-            params: {
-              espacoId: espaco.id,
-              data: dataHoje
-            }
-          });
-          
-          // Verificar se alguma reserva está em uso neste momento
-          const emUso = reservasResponse.data.some(reserva => 
-            reserva.status === 'EM_USO' && 
-            reserva.horaInicial <= horaAtual && 
-            reserva.horaFinal > horaAtual
-          );
-          
-          return { ...espaco, statusAtual: emUso ? 'EM_USO' : 'DISPONÍVEL' };
-        } catch (error) {
-          console.error(`Erro ao verificar status do espaço ${espaco.id}:`, error);
-          return { ...espaco, statusAtual: 'DISPONÍVEL' };
-        }
-      }));
-      
+      const espacosComStatus = await verificarStatusEspacos(response.data);
       setEspacos(espacosComStatus);
     } catch (error) {
       console.error('Erro ao carregar espaços:', error);
@@ -165,14 +98,50 @@ const ListaEspacos = () => {
     }
   };
 
+  // Função para verificar status atual dos espaços
+  const verificarStatusEspacos = async (espacos) => {
+    const agora = new Date();
+    const dataHoje = agora.toISOString().split('T')[0];
+    const horaAtual = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}:00`;
+    
+    return Promise.all(espacos.map(async (espaco) => {
+      if (!espaco.disponivel) {
+        return { ...espaco, statusAtual: STATUS.INDISPONIVEL };
+      }
+      
+      try {
+        const reservasResponse = await api.get('/reservas/buscar-por-espaco-data', {
+          params: {
+            espacoId: espaco.id,
+            data: dataHoje
+          }
+        });
+        
+        // Verificar se alguma reserva está em uso
+        const emUso = reservasResponse.data.some(reserva => 
+          reserva.status === STATUS.EM_USO && 
+          reserva.horaInicial <= horaAtual && 
+          reserva.horaFinal > horaAtual
+        );
+        
+        return { ...espaco, statusAtual: emUso ? STATUS.EM_USO : STATUS.DISPONIVEL };
+      } catch (error) {
+        console.error(`Erro ao verificar status do espaço ${espaco.id}:`, error);
+        return { ...espaco, statusAtual: STATUS.DISPONIVEL };
+      }
+    }));
+  };
+
+  // Handlers para os filtros
   const handleFiltroChange = (event) => {
     setFiltroStatus(event.target.value);
   };
 
   const handleLimparFiltro = () => {
-    setFiltroStatus('TODOS');
+    setFiltroStatus(STATUS.TODOS);
   };
 
+  // Handlers para navegação e ações
   const handleNovoEspaco = () => {
     navigate('/espacos/novo');
   };
@@ -260,6 +229,62 @@ const ListaEspacos = () => {
     setEspacoParaAtualizarStatus(null);
   };
 
+  // Função para renderizar botões de ação conforme status
+  const renderAcoes = (espaco) => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
+      <Button
+        variant="contained"
+        color="primary"
+        size="small"
+        onClick={() => handleEditar(espaco.id)}
+        sx={{ bgcolor: '#0F1140', '&:hover': { bgcolor: '#1a1b4b' } }}
+      >
+        Editar
+      </Button>
+      
+      {espaco.disponivel ? (
+        <Tooltip title="Marcar como indisponível (em manutenção/reforma)">
+          <Button
+            variant="contained"
+            color="warning"
+            size="small"
+            onClick={() => handleTornarIndisponivelClick(espaco)}
+            sx={{
+              bgcolor: '#ff9800',
+              '&:hover': { bgcolor: '#f57c00' }
+            }}
+          >
+            Tornar Indisponível
+          </Button>
+        </Tooltip>
+      ) : (
+        <Tooltip title="Marcar como disponível novamente">
+          <Button
+            variant="contained"
+            color="success"
+            size="small"
+            onClick={() => handleTornarDisponivelClick(espaco.id)}
+            sx={{
+              bgcolor: '#4caf50',
+              '&:hover': { bgcolor: '#388e3c' }
+            }}
+          >
+            Tornar Disponível
+          </Button>
+        </Tooltip>
+      )}
+      
+      <Button
+        variant="contained"
+        color="error"
+        size="small"
+        onClick={() => handleExcluirClick(espaco)}
+      >
+        Excluir
+      </Button>
+    </Box>
+  );
+
   return (
     <div>
       <FeedbackComponent />
@@ -281,49 +306,13 @@ const ListaEspacos = () => {
         </Button>
       </Box>
 
-      {/* Filtro de Status */}
-      <FilterContainer>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4} md={3}>
-            <Typography variant="subtitle1" fontWeight="bold">
-              <FilterAltIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-              Filtrar por Status:
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={5} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="filtro-status-label">Status</InputLabel>
-              <Select
-                labelId="filtro-status-label"
-                id="filtro-status"
-                value={filtroStatus}
-                label="Status"
-                onChange={handleFiltroChange}
-              >
-                <MenuItem value="TODOS">Todos os Espaços</MenuItem>
-                <MenuItem value="DISPONÍVEL">Disponíveis</MenuItem>
-                <MenuItem value="EM_USO">Em Uso</MenuItem>
-                <MenuItem value="INDISPONÍVEL">Indisponíveis</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={3} md={2}>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={handleLimparFiltro}
-              fullWidth
-            >
-              Limpar
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Typography variant="body2" color="text.secondary">
-              {espacosFiltrados.length} espaço(s) encontrado(s)
-            </Typography>
-          </Grid>
-        </Grid>
-      </FilterContainer>
+      {/* Componente de filtro extraído */}
+      <FiltroEspacos 
+        filtroStatus={filtroStatus} 
+        handleFiltroChange={handleFiltroChange} 
+        handleLimparFiltro={handleLimparFiltro} 
+        totalEspacos={espacosFiltrados.length} 
+      />
 
       <Paper sx={{ 
         width: '100%', 
@@ -333,7 +322,7 @@ const ListaEspacos = () => {
       }}>
         <TableContainer>
           <Table>
-            <TableHead sx={{ bgcolor: '#f5ff5' }}>
+            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
               <TableRow>
                 <TableCell>Sigla</TableCell>
                 <TableCell>Nome</TableCell>
@@ -350,67 +339,10 @@ const ListaEspacos = () => {
                     <TableCell>{espaco.nome}</TableCell>
                     <TableCell>{espaco.capacidadeAlunos}</TableCell>
                     <TableCell>
-                      <StatusChip 
-                        label={espaco.disponivel ? espaco.statusAtual : 'INDISPONÍVEL'} 
-                        status={espaco.disponivel ? espaco.statusAtual : 'INDISPONÍVEL'} 
-                      />
+                      <StatusChip status={espaco.disponivel ? espaco.statusAtual : STATUS.INDISPONIVEL} />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          onClick={() => handleEditar(espaco.id)}
-                          sx={{ 
-                            bgcolor: '#0F1140', 
-                            '&:hover': { bgcolor: '#1a1b4b' } 
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        
-                        {espaco.disponivel ? (
-                          <Tooltip title="Marcar como indisponível (em manutenção/reforma)">
-                            <Button
-                              variant="contained"
-                              color="warning"
-                              size="small"
-                              onClick={() => handleTornarIndisponivelClick(espaco)}
-                              sx={{
-                                bgcolor: '#ff9800',
-                                '&:hover': { bgcolor: '#f57c00' }
-                              }}
-                            >
-                              Tornar Indisponível
-                            </Button>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Marcar como disponível novamente">
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              onClick={() => handleTornarDisponivelClick(espaco.id)}
-                              sx={{
-                                bgcolor: '#4caf50',
-                                '&:hover': { bgcolor: '#388e3c' }
-                              }}
-                            >
-                              Tornar Disponível
-                            </Button>
-                          </Tooltip>
-                        )}
-                        
-                        <Button
-                          variant="contained"
-                          color="error"
-                          size="small"
-                          onClick={() => handleExcluirClick(espaco)}
-                        >
-                          Excluir
-                        </Button>
-                      </Box>
+                      {renderAcoes(espaco)}
                     </TableCell>
                   </TableRow>
                 ))
@@ -429,10 +361,7 @@ const ListaEspacos = () => {
       </Paper>
 
       {/* Diálogo de confirmação para exclusão */}
-      <Dialog
-        open={confirmDialogOpen}
-        onClose={handleCancelExcluir}
-      >
+      <Dialog open={confirmDialogOpen} onClose={handleCancelExcluir}>
         <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -441,20 +370,13 @@ const ListaEspacos = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancelExcluir} color="primary">
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirmExcluir} color="error" autoFocus>
-            Excluir
-          </Button>
+          <Button onClick={handleCancelExcluir} color="primary">Cancelar</Button>
+          <Button onClick={handleConfirmExcluir} color="error" autoFocus>Excluir</Button>
         </DialogActions>
       </Dialog>
 
       {/* Diálogo de confirmação para tornar indisponível */}
-      <Dialog
-        open={statusDialogOpen}
-        onClose={handleCancelTornarIndisponivel}
-      >
+      <Dialog open={statusDialogOpen} onClose={handleCancelTornarIndisponivel}>
         <DialogTitle>Confirmar Alteração de Status</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -465,12 +387,8 @@ const ListaEspacos = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancelTornarIndisponivel} color="primary">
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirmTornarIndisponivel} color="warning" autoFocus>
-            Confirmar
-          </Button>
+          <Button onClick={handleCancelTornarIndisponivel} color="primary">Cancelar</Button>
+          <Button onClick={handleConfirmTornarIndisponivel} color="warning" autoFocus>Confirmar</Button>
         </DialogActions>
       </Dialog>
     </div>

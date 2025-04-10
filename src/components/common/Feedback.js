@@ -1,7 +1,11 @@
 import React from 'react';
 import { Snackbar, Alert } from '@mui/material';
 
-export const useFeedback = () => {
+/**
+ * Hook personalizado para gerenciar feedback na interface através de alertas
+ * @returns {Object} Objeto contendo o estado do feedback, funções para controle e componente de renderização
+ */
+const useFeedback = () => {
   const [feedback, setFeedback] = React.useState({
     open: false,
     message: '',
@@ -9,6 +13,12 @@ export const useFeedback = () => {
     autoHideDuration: 6000,
   });
 
+  /**
+   * Exibe uma mensagem de feedback
+   * @param {string} message - Mensagem a ser exibida
+   * @param {('error'|'warning'|'info'|'success')} severity - Tipo de alerta
+   * @param {number} autoHideDuration - Tempo em ms para ocultar automaticamente
+   */
   const showFeedback = (message, severity = 'info', autoHideDuration = 6000) => {
     setFeedback({
       open: true,
@@ -18,6 +28,9 @@ export const useFeedback = () => {
     });
   };
 
+  /**
+   * Oculta a mensagem de feedback atual
+   */
   const hideFeedback = () => {
     setFeedback(prev => ({
       ...prev,
@@ -25,6 +38,9 @@ export const useFeedback = () => {
     }));
   };
 
+  /**
+   * Componente de renderização do feedback
+   */
   const FeedbackComponent = () => (
     <Snackbar
       open={feedback.open}
