@@ -1,17 +1,41 @@
 import { createTheme } from '@mui/material/styles';
 
+// Cores base da identidade visual
+const colors = {
+  ucbBlue: {
+    main: '#14104a',
+    light: '#3f3a7d',
+    dark: '#0d0a2e',
+  },
+  ucbYellow: {
+    main: '#F2E085',
+    light: '#f5e9a9',
+    dark: '#c9b96e',
+  },
+  text: {
+    primary: '#333333',
+    secondary: '#757575',
+    disabled: '#9e9e9e',
+  },
+  background: {
+    default: '#f5f5f5',
+    paper: '#ffffff',
+  }
+};
+
 const theme = createTheme({
+  // Configuração de cores
   palette: {
     primary: {
-      main: '#14104a', // Azul escuro UCB
-      light: '#3f3a7d',
-      dark: '#0d0a2e',
+      main: colors.ucbBlue.main,
+      light: colors.ucbBlue.light,
+      dark: colors.ucbBlue.dark,
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#F2E085', // Amarelo UCB (foi chamado de laranja incorretamente)
-      light: '#f5e9a9',
-      dark: '#c9b96e',
+      main: colors.ucbYellow.main,
+      light: colors.ucbYellow.light,
+      dark: colors.ucbYellow.dark,
       contrastText: '#000000',
     },
     error: {
@@ -34,16 +58,11 @@ const theme = createTheme({
       light: '#81c784',
       dark: '#388e3c',
     },
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-    text: {
-      primary: '#333333',
-      secondary: '#757575',
-      disabled: '#9e9e9e',
-    },
+    background: colors.background,
+    text: colors.text,
   },
+  
+  // Configuração de tipografia
   typography: {
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
@@ -57,6 +76,8 @@ const theme = createTheme({
       fontWeight: 500,
     },
   },
+  
+  // Customização de componentes
   components: {
     MuiButton: {
       styleOverrides: {
@@ -100,7 +121,7 @@ const theme = createTheme({
         },
         head: {
           fontWeight: 600,
-          backgroundColor: '#f5f5f5',
+          backgroundColor: colors.background.default,
         },
       },
     },
