@@ -353,11 +353,6 @@ const GerenciarUsuarios = () => {
                 Tem certeza que deseja excluir o usuário <strong>{usuarioToDelete?.username}</strong>?
               </Alert>
             </Grid>
-            <Grid item xs={12}>
-              <Typography variant="body1">
-                Esta ação não pode ser desfeita.
-              </Typography>
-            </Grid>
           </Grid>
         </StyledDialogContent>
         <StyledDialogActions>

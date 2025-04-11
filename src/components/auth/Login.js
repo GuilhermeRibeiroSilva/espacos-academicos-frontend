@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-// Estilos personalizados
 const LoginContainer = styled(Box)({
   display: 'flex',
   minHeight: '100vh',
@@ -103,14 +102,12 @@ const Login = () => {
     e.preventDefault();
     setError('');
     
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.username)) {
       setError('Por favor, insira um email válido');
       return;
     }
     
-    // Validar preenchimento de senha
     if (!formData.password.trim()) {
       setError('Por favor, insira sua senha');
       return;
@@ -172,7 +169,7 @@ const Login = () => {
           <form onSubmit={handleSubmit}>
             <StyledTextField
               fullWidth
-              label="Username"
+              label="Usuário"
               name="username"
               value={formData.username}
               onChange={handleChange}
@@ -182,7 +179,7 @@ const Login = () => {
 
             <StyledTextField
               fullWidth
-              label="Password"
+              label="Senha"
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={formData.password}

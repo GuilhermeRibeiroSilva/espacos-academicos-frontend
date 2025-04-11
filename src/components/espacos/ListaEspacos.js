@@ -24,7 +24,7 @@ import { useFeedback } from '../common/Feedback';
 import StatusChip from './StatusChip';
 import FiltroEspacos from './FiltroEspacos';
 
-// Constantes para facilitar manutenção
+
 const STATUS = {
   TODOS: 'TODOS',
   DISPONIVEL: 'DISPONÍVEL',
@@ -32,7 +32,7 @@ const STATUS = {
   INDISPONIVEL: 'INDISPONÍVEL'
 };
 
-const INTERVALO_ATUALIZACAO = 60000; // 1 minuto em milissegundos
+const INTERVALO_ATUALIZACAO = 60000; 
 
 const ListaEspacos = () => {
   const [espacos, setEspacos] = useState([]);
@@ -50,15 +50,15 @@ const ListaEspacos = () => {
   useEffect(() => {
     carregarEspacos();
     
-    // Atualizar o status dos espaços periodicamente
+    
     const interval = setInterval(() => {
-      carregarEspacos(false); // Não mostrar loading para atualizações silenciosas
+      carregarEspacos(false); 
     }, INTERVALO_ATUALIZACAO);
     
     return () => clearInterval(interval);
   }, []);
 
-  // Efeito para filtrar os espaços quando o filtro ou a lista de espaços mudar
+  
   useEffect(() => {
     aplicarFiltro();
   }, [filtroStatus, espacos]);
@@ -98,7 +98,7 @@ const ListaEspacos = () => {
     }
   };
 
-  // Função para verificar status atual dos espaços
+  
   const verificarStatusEspacos = async (espacos) => {
     const agora = new Date();
     const dataHoje = agora.toISOString().split('T')[0];
@@ -117,7 +117,7 @@ const ListaEspacos = () => {
           }
         });
         
-        // Verificar se alguma reserva está em uso
+        
         const emUso = reservasResponse.data.some(reserva => 
           reserva.status === STATUS.EM_USO && 
           reserva.horaInicial <= horaAtual && 
@@ -132,7 +132,7 @@ const ListaEspacos = () => {
     }));
   };
 
-  // Handlers para os filtros
+  
   const handleFiltroChange = (event) => {
     setFiltroStatus(event.target.value);
   };
@@ -141,7 +141,7 @@ const ListaEspacos = () => {
     setFiltroStatus(STATUS.TODOS);
   };
 
-  // Handlers para navegação e ações
+  
   const handleNovoEspaco = () => {
     navigate('/espacos/novo');
   };
@@ -229,7 +229,7 @@ const ListaEspacos = () => {
     setEspacoParaAtualizarStatus(null);
   };
 
-  // Função para renderizar botões de ação conforme status
+  
   const renderAcoes = (espaco) => (
     <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
       <Button
@@ -306,7 +306,7 @@ const ListaEspacos = () => {
         </Button>
       </Box>
 
-      {/* Componente de filtro extraído */}
+      {/* Filtro Espaços */}
       <FiltroEspacos 
         filtroStatus={filtroStatus} 
         handleFiltroChange={handleFiltroChange} 
@@ -360,13 +360,13 @@ const ListaEspacos = () => {
         </TableContainer>
       </Paper>
 
-      {/* Diálogo de confirmação para exclusão */}
+      {/* Diálogo de confirmação de exclusão */}
       <Dialog open={confirmDialogOpen} onClose={handleCancelExcluir}>
         <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Tem certeza que deseja excluir o espaço acadêmico "{espacoParaExcluir?.nome}"? 
-            Esta ação não pode ser desfeita.
+            <br />
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -382,8 +382,6 @@ const ListaEspacos = () => {
           <DialogContentText>
             Tem certeza que deseja marcar o espaço "{espacoParaAtualizarStatus?.nome}" como indisponível?
             <br /><br />
-            <strong>Atenção:</strong> Isto impedirá novas reservas para este espaço e 
-            deve ser usado para espaços em manutenção ou reforma.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

@@ -23,7 +23,7 @@ import CustomCalendar from './CustomCalendar';
 import StatusChip, { getStatusLabel } from './StatusChip';
 import { parseAnyDate, formatarData, formatarHora, formatarNomeProfessor } from '../../utils/dateUtils';
 
-// Estilos para a tabela
+
 const TableHeader = styled(TableHead)({
   backgroundColor: '#f5f5f5',
 });
@@ -55,18 +55,18 @@ const Dashboard = () => {
   const [diasComReserva, setDiasComReserva] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // Função para calcular status atual
+  
   const calcularStatusAtual = useCallback((reserva) => {
     try {
       const hoje = new Date();
       
-      // Extrair data da reserva usando a função parseAnyDate
+      
       const dataReserva = parseAnyDate(reserva.data || reserva.dataReserva);
       if (!dataReserva) return reserva.status || 'AGENDADO';
       
       if (reserva.status === 'CANCELADO') return 'CANCELADO';
       
-      // Converter strings de hora para objetos Date para comparação
+      
       let horaInicio, horaFim;
 
       if (reserva.horaInicio || reserva.horaInicial) {
@@ -118,12 +118,12 @@ const Dashboard = () => {
     }
   }, []);
   
-  // Busca de dados ao carregar o componente
+  
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // Buscar todas as reservas
+        
         const reservasResponse = await api.get('/reservas');
         
         const reservasProcessadas = reservasResponse.data.map(reserva => {
@@ -145,7 +145,7 @@ const Dashboard = () => {
         
         setReservas(reservasProcessadas);
         
-        // Mapa de dias com reservas
+        
         const map = {};
         let countHoje = 0;
         let countEmUso = 0;
@@ -154,7 +154,7 @@ const Dashboard = () => {
         reservasProcessadas.forEach(reserva => {
           if (!reserva.dataObj) return;
           
-          // Verifica permissões
+          
           let deveIncluir = true;
           if (!auth.isAdmin && auth.user?.professorId) {
             const professorId = auth.user.professorId;
@@ -166,7 +166,7 @@ const Dashboard = () => {
           const dateKey = format(reserva.dataObj, 'yyyy-MM-dd');
           map[dateKey] = (map[dateKey] || 0) + 1;
           
-          // Conta reservas de hoje
+          
           if (isSameDay(reserva.dataObj, hoje)) {
             countHoje++;
             if (reserva.statusAtual === 'EM_USO') {
@@ -180,7 +180,7 @@ const Dashboard = () => {
         setEspacosEmUso(countEmUso);
         
         if (auth.isAdmin) {
-          // Dados específicos para admin
+          
           const professoresResponse = await api.get('/professores');
           setProfessorCount(professoresResponse.data.length);
           
@@ -206,13 +206,13 @@ const Dashboard = () => {
     return () => clearInterval(intervalId);
   }, [auth.isAdmin, auth.user, calcularStatusAtual]);
   
-  // Atualiza as reservas do dia selecionado
+  
   useEffect(() => {
     const reservasFiltradas = reservas.filter(reserva => 
       reserva.dataObj && isSameDay(reserva.dataObj, selectedDate)
     );
     
-    // Filtra por professor se necessário
+    
     if (!auth.isAdmin && auth.user?.professorId) {
       const professorId = auth.user.professorId;
       setReservasDoDia(reservasFiltradas.filter(r => 
@@ -223,7 +223,7 @@ const Dashboard = () => {
     }
   }, [selectedDate, reservas, auth.isAdmin, auth.user]);
   
-  // Renderização condicional para carregamento
+  
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -239,7 +239,7 @@ const Dashboard = () => {
       </Typography>
       
       <Grid container spacing={4}>
-        {/* Estatísticas apenas para Admin */}
+        {/* Estatísticas Admin */}
         {auth.isAdmin && (
           <Grid item xs={12} md={4}>
             <Card elevation={3}>
@@ -276,10 +276,10 @@ const Dashboard = () => {
           </Grid>
         )}
         
-        {/* Calendário personalizado */}
+        {/* Calendário */}
         <Grid item xs={12} md={auth.isAdmin ? 8 : 6}>
           <Paper elevation={3} sx={{ p: 2 }}>
-            <Typography variant="h6" mb={2}>
+            <Typography variant="h6" mb={2} align="center">
               Cronograma de Reservas
             </Typography>
             <CustomCalendar 

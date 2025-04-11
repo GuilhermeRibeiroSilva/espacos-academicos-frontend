@@ -7,10 +7,10 @@ import {
 import { styled } from '@mui/material/styles';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { format, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, addDays, getDay, getDate } from 'date-fns';
+import { format, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, addDays, getDay, getDate, addMonths } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 
-// Estilos para o calendário
+
 const CalendarContainer = styled(Box)({
   width: '100%',
   padding: '16px',
@@ -58,9 +58,7 @@ const DayNumber = styled(Typography)(({ isCurrentMonth }) => ({
 const ReservationIndicator = styled(Box)(({ reservations }) => {
   const getColor = () => {
     if (!reservations || reservations === 0) return 'transparent';
-    if (reservations >= 10) return '#f44336'; // Vermelho (muitas reservas)
-    if (reservations >= 5) return '#ff9800';  // Laranja (várias reservas)
-    return '#4caf50';  // Verde (poucas reservas)
+    return '#181B59';  
   };
   
   return {
@@ -87,11 +85,11 @@ const CustomCalendar = ({
   setCurrentMonth, 
   setSelectedDate 
 }) => {
-  // Obtém os dias do mês atual para exibir
+  
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   
-  // Inclui dias do mês anterior e próximo para preencher semanas completas
+  
   const startDate = addDays(monthStart, -getDay(monthStart));
   const endDate = addDays(monthEnd, 6 - getDay(monthEnd));
   

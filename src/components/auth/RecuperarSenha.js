@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import api from '../../services/api';
 
-// Componente para exibir mensagens
+
 const Mensagem = ({ error, success }) => (
     <>
         {error && (
@@ -29,7 +29,7 @@ const Mensagem = ({ error, success }) => (
     </>
 );
 
-// Formulário de solicitação de recuperação
+
 const FormSolicitacao = ({ email, setEmail, onSubmit }) => (
     <form onSubmit={onSubmit}>
         <TextField
@@ -52,7 +52,7 @@ const FormSolicitacao = ({ email, setEmail, onSubmit }) => (
     </form>
 );
 
-// Formulário de verificação de token
+
 const FormToken = ({ token, setToken, onSubmit }) => (
     <form onSubmit={onSubmit}>
         <TextField
@@ -74,7 +74,7 @@ const FormToken = ({ token, setToken, onSubmit }) => (
     </form>
 );
 
-// Formulário de alteração de senha
+
 const FormNovaSenha = ({ novaSenha, setNovaSenha, confirmarSenha, setConfirmarSenha, onSubmit }) => (
     <form onSubmit={onSubmit}>
         <TextField
@@ -107,7 +107,7 @@ const FormNovaSenha = ({ novaSenha, setNovaSenha, confirmarSenha, setConfirmarSe
 );
 
 const RecuperarSenha = () => {
-    // Estados unificados em grupos lógicos
+    
     const [formData, setFormData] = useState({
         email: '',
         token: '',
@@ -120,23 +120,23 @@ const RecuperarSenha = () => {
         success: ''
     });
     
-    // Desestruturação para facilitar o acesso
+    
     const { email, token, novaSenha, confirmarSenha } = formData;
     const { activeStep, error, success } = status;
     
     const steps = ['Solicitar recuperação', 'Verificar token', 'Nova senha'];
 
-    // Helper para atualizar campos do formulário
+    
     const updateForm = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    // Helper para atualizar estados de status
+    
     const updateStatus = (updates) => {
         setStatus(prev => ({ ...prev, ...updates }));
     };
 
-    // Limpar mensagens de erro e sucesso
+    
     const resetMessages = () => {
         updateStatus({ error: '', success: '' });
     };

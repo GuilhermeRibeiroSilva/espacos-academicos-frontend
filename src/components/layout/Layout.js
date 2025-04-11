@@ -25,7 +25,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 // Importar logo da faculdade
-import LogoFaculdade from '../../img/ucasl-branco.png';
+import LogoFaculdade from '../../img/Logo-Ucsal.png';
 
 const Layout = ({ children }) => {
   const { auth, logout } = useAuth();

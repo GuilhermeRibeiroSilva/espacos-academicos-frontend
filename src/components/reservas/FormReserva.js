@@ -492,7 +492,7 @@ const FormReserva = () => {
               <Alert severity="info" sx={{ mt: 2, mb: 1 }}>
                 <AlertTitle>Atenção</AlertTitle>
                 Existem {horariosOcupados.length} reserva(s) para este espaço nesta data.
-                Os horários ocupados estão destacados e não podem ser selecionados.
+                Os horários ocupados estão destacados.
               </Alert>
             )}
           </Grid>

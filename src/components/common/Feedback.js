@@ -1,65 +1,55 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Snackbar, Alert } from '@mui/material';
 
 /**
- * Hook personalizado para gerenciar feedback na interface através de alertas
- * @returns {Object} Objeto contendo o estado do feedback, funções para controle e componente de renderização
+ * @returns {Object}
  */
-const useFeedback = () => {
-  const [feedback, setFeedback] = React.useState({
-    open: false,
+export const useFeedback = () => {
+  const [feedback, setFeedback] = useState({
+    show: false,
     message: '',
-    severity: 'info',
-    autoHideDuration: 6000,
+    type: 'info', 
   });
 
   /**
-   * Exibe uma mensagem de feedback
-   * @param {string} message - Mensagem a ser exibida
-   * @param {('error'|'warning'|'info'|'success')} severity - Tipo de alerta
-   * @param {number} autoHideDuration - Tempo em ms para ocultar automaticamente
+   * @param {string} message 
+   * @param {('error'|'warning'|'info'|'success')} severity 
    */
-  const showFeedback = (message, severity = 'info', autoHideDuration = 6000) => {
+  const showFeedback = useCallback((message, type = 'info') => {
     setFeedback({
-      open: true,
+      show: true,
       message,
-      severity,
-      autoHideDuration,
+      type,
     });
-  };
+  }, []);
 
-  /**
-   * Oculta a mensagem de feedback atual
-   */
-  const hideFeedback = () => {
+  const hideFeedback = useCallback(() => {
     setFeedback(prev => ({
       ...prev,
-      open: false,
+      show: false,
     }));
-  };
+  }, []);
 
-  /**
-   * Componente de renderização do feedback
-   */
   const FeedbackComponent = () => (
     <Snackbar
-      open={feedback.open}
-      autoHideDuration={feedback.autoHideDuration}
+      open={feedback.show}
+      autoHideDuration={6000}
       onClose={hideFeedback}
-      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
-      <Alert onClose={hideFeedback} severity={feedback.severity} sx={{ width: '100%' }}>
+      <Alert onClose={hideFeedback} severity={feedback.type} sx={{ width: '100%' }}>
         {feedback.message}
       </Alert>
     </Snackbar>
   );
 
   return {
-    feedback,
     showFeedback,
     hideFeedback,
     FeedbackComponent,
   };
 };
 
-export default useFeedback;
+
+const Feedback = useFeedback;
+export default Feedback;

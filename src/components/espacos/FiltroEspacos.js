@@ -10,10 +10,9 @@ import {
   Grid 
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-// Componente estilizado para o filtro
+
 const FilterContainer = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(3),
   padding: theme.spacing(2),
@@ -31,7 +30,6 @@ const FiltroEspacos = ({ filtroStatus, handleFiltroChange, handleLimparFiltro, t
       <Grid container spacing={2} alignItems="center">
         <Grid item xs={12} sm={4} md={3}>
           <Typography variant="subtitle1" fontWeight="bold">
-            <FilterAltIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
             Filtrar por Status:
           </Typography>
         </Grid>

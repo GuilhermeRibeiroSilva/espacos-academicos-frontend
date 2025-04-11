@@ -51,9 +51,9 @@ export const ProfessorInfoBox = styled(Box)({
   boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
 });
 
-// Componente do Chip de Status
+
 export const StatusChip = styled(Chip)(({ status }) => {
-  // Define a cor com base no status
+  
   const getStatusColor = () => {
     switch (status) {
       case 'PENDENTE':

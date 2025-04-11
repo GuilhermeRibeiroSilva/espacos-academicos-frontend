@@ -199,11 +199,30 @@ const FormProfessor = () => {
             placeholder="Digite o nome" 
           />
           
-          <CampoFormulario 
-            nome="escola" 
-            label="Escola/Disciplina" 
-            placeholder="Digite a escola/disciplina" 
-          />
+          <Grid item xs={12}>
+            <FormLabel>Escola/Disciplina</FormLabel>
+            <TextField
+              fullWidth
+              label="Escola/Disciplina"
+              name="escola"
+              value={formData.escola || ''}
+              onChange={(e) => {
+                // Remover qualquer lógica de validação em tempo real que possa estar causando o problema
+                const novoValor = e.target.value;
+                setFormData(prev => ({
+                  ...prev,
+                  escola: novoValor
+                }));
+              }}
+              margin="normal"
+              variant="outlined"
+              error={!!errors.escola}
+              helperText={errors.escola}
+              inputProps={{
+                autoComplete: 'off' // Desativar autocompletação que pode estar causando conflito
+              }}
+            />
+          </Grid>
           
           <Grid item xs={12}>
             <Box display="flex" justifyContent="space-between" mt={2}>

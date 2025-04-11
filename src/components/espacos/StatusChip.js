@@ -2,13 +2,13 @@ import React from 'react';
 import { Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-// Componente estilizado para status
+
 const StyledChip = styled(Chip)(({ status }) => {
-  // Define a cor com base no status
+  
   const getStatusColor = () => {
     switch (status) {
       case 'EM_USO':
-        return { bg: '#f44336', color: '#fff' };
+        return { bg: '#42A5F5', color: '#fff' };
       case 'DISPONÍVEL':
         return { bg: '#4caf50', color: '#fff' };
       case 'INDISPONÍVEL':

@@ -182,7 +182,7 @@ const ListaProfessores = () => {
                 <DialogContent>
                     <DialogContentText>
                         Tem certeza que deseja excluir o professor "{professorParaExcluir?.nome}"?
-                        <strong> Esta ação também excluirá todas as reservas associadas a este professor e não pode ser desfeita.</strong>
+                        <strong> Esta ação também excluirá todas as reservas ligadas a este professor.</strong>
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

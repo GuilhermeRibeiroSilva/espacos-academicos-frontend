@@ -3,7 +3,7 @@ import { Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 const StatusChip = styled(Chip)(({ status }) => {
-  // Define a cor com base no status
+  
   const getStatusColor = () => {
     switch (status) {
       case 'PENDENTE':
@@ -31,7 +31,7 @@ const StatusChip = styled(Chip)(({ status }) => {
   };
 });
 
-// Traduzir status para exibição
+
 export const getStatusLabel = (status) => {
   switch (status) {
     case 'PENDENTE': 

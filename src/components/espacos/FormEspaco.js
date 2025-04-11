@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  Typography, 
-  TextField, 
-  Button, 
   Box, 
-  Paper,
   Grid,
   Alert
 } from '@mui/material';
 
 import api from '../../services/api';
 import { useLoading } from '../../contexts/LoadingContext';
+
 import { useFeedback } from '../common/Feedback';
 import { 
   FormContainer, 
@@ -19,7 +16,7 @@ import {
   FormLabel, 
   StyledButton, 
   StyledField 
-} from './EspacoStyles'; // Recomendo mover os estilos para esse arquivo
+} from './EspacoStyles'; 
 
 const CAMPO_OBRIGATORIO = 'Campo obrigatório';
 const INICIAL_FORM_DATA = {
@@ -34,6 +31,7 @@ const FormEspaco = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showLoading, hideLoading } = useLoading();
+  
   const { showFeedback, FeedbackComponent } = useFeedback();
   
   const [formData, setFormData] = useState(INICIAL_FORM_DATA);
@@ -73,7 +71,7 @@ const FormEspaco = () => {
       [name]: processedValue
     }));
     
-    // Limpa o erro do campo quando o usuário começa a digitar
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -121,7 +119,7 @@ const FormEspaco = () => {
       setSuccess(true);
       showFeedback(`Espaço acadêmico ${actionText} com sucesso`, 'success');
       
-      // Redirecionar após 2 segundos quando sucesso
+      
       setTimeout(() => navigate('/espacos'), 2000);
     } catch (error) {
       console.error('Erro ao salvar espaço:', error);
